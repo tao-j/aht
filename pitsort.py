@@ -12,29 +12,29 @@ class Node:
         self.count = 0
 
 
-class CmpSort:  # rank from low to hight
-    def __init__(self, S, delta):
-        self.S = S
-        self.n = len(self.S)
+class PITSort:  # rank from low to high
+    def __init__(self, s, delta):
+        self.s = s
+        self.N = len(self.s)
         self.delta = delta
 
-        if self.n == 0:
+        if self.N == 0:
             self.done = True
             self.ranked_list = []
             return
-        if self.n == 1:
+        if self.N == 1:
             self.done = True
-            self.ranked_list = [self.S[0]]
+            self.ranked_list = [self.s[0]]
             return
         else:
             self.done = False
 
-        self.ranked_list = [self.S[0]]
+        self.ranked_list = [self.s[0]]
 
         self.t_iir = 1
         self.t_iai = 1
         self.t_ati = 1
-        self.delta_iai_param = self.delta / (self.n - 1)
+        self.delta_iai_param = self.delta / (self.N - 1)
         self.delta_ati_param = None
         self.delta_atc_param = None
         self.epsilon_ati_param = None
@@ -43,7 +43,7 @@ class CmpSort:  # rank from low to hight
         self.h = None
         self.prev_atc_y = None
 
-        # n >= 2
+        # N >= 2
         self.n_intree = 1
         self.requested_pair = [None, None]
         self.state = None
@@ -65,7 +65,7 @@ class CmpSort:  # rank from low to hight
 
         bq = []
         bq.append(root)
-        # build the index tree 
+        # build the index/interval tree
         while len(bq):
             current = bq[0]
             bq.pop(0)
@@ -137,7 +137,7 @@ class CmpSort:  # rank from low to hight
         t = self.t_ati
         t_max = np.ceil(np.max([4 * self.h, 512 / 25 * np.log2(2 / self.delta_ati_param)]))
 
-        # state number means I have already reached # ATC# call
+        # state number means I have already reached number of ATC calls in this iteration
         if self.state == 0:
             self.X = self.X.rchild if atc_y == 1 else self.X.lchild
             assert self.X is not None
@@ -152,7 +152,7 @@ class CmpSort:  # rank from low to hight
                 b_t = 0.5 * t + np.sqrt(t / 2 * np.log2(np.pi * np.pi * t * t / 3 / self.delta_ati_param)) + 1
                 if self.X.count > b_t:
                     inserted = True
-                    self.ranked_list.insert(self.X.right, self.S[self.n_intree])
+                    self.ranked_list.insert(self.X.right, self.s[self.n_intree])
                     inserted_place = self.X.right
                     self.n_intree += 1
             elif self.X.count > 0:
@@ -181,7 +181,7 @@ class CmpSort:  # rank from low to hight
                     if node.count > 1 + 5 / 16 * t_max:
                         inserted = True
                         inserted_place = node.right
-                        self.ranked_list.insert(node.right, self.S[self.n_intree])
+                        self.ranked_list.insert(node.right, self.s[self.n_intree])
                         self.n_intree += 1
                         break
             if inserted:
@@ -189,7 +189,7 @@ class CmpSort:  # rank from low to hight
                 self.t_iir += 1
                 if total != 0:
                     print(total)
-                if self.t_iir == self.n:
+                if self.t_iir == self.N:
                     self.done = 1
                     return inserted, inserted_place
             else:
@@ -217,23 +217,21 @@ if __name__ == "__main__":
         for i in range(n):
             aa.append(random.randint(1, 100))
         for a in itertools.permutations(aa):
-            # print(a)
-            # a = aa
             a_sorted = sorted(a)
             print(a_sorted)
-            ms = CmpSort(a, 0.01)
-            while not ms.done:
-                pair = ms.next_pair()
-                assert(0 <= pair[0] <= ms.n_intree)
-                assert (-1 <= pair[1] <= ms.n_intree)
+            cmp_sort = PITSort(a, 0.01)
+            while not cmp_sort.done:
+                pair = cmp_sort.next_pair()
+                assert(0 <= pair[0] <= cmp_sort.n_intree)
+                assert (-1 <= pair[1] <= cmp_sort.n_intree)
                 if pair[1] == -1:
-                    ms.feedback(1)
-                elif pair[1] == ms.n_intree:
-                    ms.feedback(0)
+                    cmp_sort.feedback(1)
+                elif pair[1] == cmp_sort.n_intree:
+                    cmp_sort.feedback(0)
                 else:
-                    y = cmp(pair[0], pair[1], ms.ranked_list, a)
-                    ms.feedback(y)
-            a_ms = list(ms.ranked_list)
+                    y = cmp(pair[0], pair[1], cmp_sort.ranked_list, a)
+                    cmp_sort.feedback(y)
+            a_ms = list(cmp_sort.ranked_list)
             print(a_ms)
             assert (a_ms == a_sorted)
             break

@@ -7,7 +7,7 @@ class ActiveRank:
     def __init__(self, N, M, delta, s, gamma, active=True):
         self.N = N
         self.M = M
-        self.cM = np.array(range(0, M))
+        self.cU = np.array(range(0, M))
         self.s = s
         self.gamma = gamma
         self.delta = delta
@@ -28,8 +28,6 @@ class ActiveRank:
                 self.cmp_sort.feedback(1)
             elif pair[1] == self.cmp_sort.n_intree:
                 self.cmp_sort.feedback(0)
-            elif (pair[0] == pair[1]):
-                    assert False
             else:
                 pack_a = self.atc(pair[0], pair[1], self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param,
                                   self.cmp_sort.ranked_list, self.s, self.gamma)
@@ -46,10 +44,10 @@ class ActiveRank:
         pass
 
     def init_user_counter(self):
-        pass
+        raise NotImplementedError
 
     def update_user_counter(self):
-        pass
+        raise NotImplementedError
 
 
 class TwoStageSimultaneousActiveRank(ActiveRank):
@@ -62,30 +60,30 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
         y, bn, r = pack_a
         self.s_t += r
         self.n_t += bn
-        self.cM = self.eliminate_user(delta=delta)
+        self.cU = self.eliminate_user(delta=delta)
 
     def eliminate_user(self, eps=0.1, delta=0.1):
-        if len(self.cM) == 1:
-            return self.cM
-        s_max = int(np.ceil(2 / eps / eps * np.log2(len(self.cM) / delta)))
+        if len(self.cU) == 1:
+            return self.cU
+        s_max = int(np.ceil(2 / eps / eps * np.log2(len(self.cU) / delta)))
         if self.s_t > s_max:
             mu_t = self.n_t / self.s_t
             i_best = np.argmax(mu_t)
-            self.cM = [i_best]
-        return self.cM
+            self.cU = [i_best]
+        return self.cU
 
     def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
         """
         Do AttemptToCompare in rounds. One round asks every user once.
         """
         w = 0
-        m_t = len(self.cM)
+        m_t = len(self.cU)
         b_max = np.ceil(1. / 2 / m_t / eps ** 2 * np.log(2 / delta))
         bn = np.zeros(self.M)
         p = 0.5
         r = 0
         for t in range(1, int(b_max)):
-            for u in self.cM:
+            for u in self.cU:
                 # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
                 # s_j = ranked_s[j] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
                 pij = np.exp(gamma[u] * original_s[i]) / (
@@ -102,7 +100,7 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
                     bn[u] += 1
             r = t
             b_t = np.sqrt(1. / 2 / (r + 1) / m_t * np.log(np.pi ** 2 * (r + 1) ** 2 / 3 / delta))
-            p = w / r / len(self.cM)
+            p = w / r / len(self.cU)
             if p > 0.5 + b_t:
                 break
             if p < 0.5 - b_t:
@@ -110,7 +108,7 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
 
         atc_y = 1 if p > 0.5 else 0
         bn = bn if p > 0.5 else r - bn
-        self.rank_sample_complexity += r * len(self.cM)
+        self.rank_sample_complexity += r * len(self.cU)
         return atc_y, bn, r
 
 
@@ -126,7 +124,6 @@ class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
             self.gt_y = 0
         eps_user, cost2 = self.eliminate_user()
         self.rank_sample_complexity += cost2 + cost1
-        # print(eps_user, cost1, cost2)
 
     def post_atc(self, pack_a, pack_b):
         pass
@@ -139,11 +136,11 @@ class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
         bn = np.zeros(self.M)
         bs = np.zeros(self.M)
         while True:
-            if len(self.cM) == 1:
-                return self.cM, np.sum(bs)
+            if len(self.cU) == 1:
+                return self.cU, np.sum(bs)
             b_max = int(np.ceil(4 / eps / eps * np.log2(3 / delta)))
             for t in range(1, int(b_max)):
-                for u in self.cM:
+                for u in self.cU:
                     bs[u] += 1
                     # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
                     # s_j = ranked_s[j] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
@@ -163,10 +160,10 @@ class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
             mu = bn / bs
             if self.gt_y == 0:
                 mu = 1 - mu
-            ranked_u_cm = np.sort(mu[self.cM])
-            ranked_u_idx = np.argsort(mu[self.cM])
-            keep = len(self.cM) // 2
-            self.cM = self.cM[ranked_u_idx[keep:]]
+            ranked_u_cm = np.sort(mu[self.cU])
+            ranked_u_idx = np.argsort(mu[self.cU])
+            keep = len(self.cU) // 2
+            self.cU = self.cU[ranked_u_idx[keep:]]
 
     def rank(self):
         cost, ranked = super().rank()
@@ -206,7 +203,7 @@ class UnevenUCBActiveRank(ActiveRank):
         p = 0.5
         w = 0
         for t in range(1, t_max + 1):
-            u = np.random.choice(self.cM, 1)[0]
+            u = np.random.choice(self.cU, 1)[0]
             self.bs[u] += 1
             self.rank_sample_complexity += 1
             # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
@@ -237,144 +234,27 @@ class UnevenUCBActiveRank(ActiveRank):
         return atc_y, self.A, self.bs
 
     def eliminate_user(self, eps=0.1, delta=0.1):
-        smin = min(self.bs[self.cM])
+        smin = min(self.bs[self.cU])
         mu = self.bn / self.bs
-        # TODO: log2 ?
         if smin == 0:
             assert False
-        if np.log2(2 * len(self.cM) / delta) / 2 / smin < 0:
+        if np.log2(2 * len(self.cU) / delta) / 2 / smin < 0:
             assert False
-        r = np.sqrt(np.log2(2 * len(self.cM) / delta) / 2 / smin)
+        r = np.sqrt(np.log2(2 * len(self.cU) / delta) / 2 / smin)
         stotal = sum(self.bs)
         if stotal > 2 * self.M * self.M * np.log2(self.N * self.M / delta):
             bucb = mu + r
             blcb = mu - r
             to_remove = set()
-            for u in self.cM:
-                for up in self.cM:
+            for u in self.cU:
+                for up in self.cU:
                     if bucb[u] < blcb[up]:
                         to_remove.add(u)
                         break
             new_cM = []
-            for u in self.cM:
+            for u in self.cU:
                 if u not in to_remove:
                     new_cM.append(u)
             if new_cM == []:
                 assert False
-            self.cM = new_cM
-
-
-def gamma_sweep(algonum, repeat, eps=0.1, delta=0.1, N=10, gg=5.0):
-    random.seed(123)
-    np.random.seed(123)
-
-    # data gen method may be mentioned in Ren et al.
-    thetas = []
-    for i in range(100):
-        li = 0.9 * np.power(1.2 / 0.8, i)
-        ri = 1.1 * np.power(1.2 / 0.8, i)
-        thetas.append(li + (ri - li) * (np.random.random()))
-        # thetas.append(np.power(1.2 / 0.8, i))
-
-    M = 9
-    # for gb in [0.25, 1., 2.5]:
-    #     for gg in [2.5, 5, 10]:
-    # for gb in [2.5]:
-    #     for gg in [2.5]:
-    for gb in [0.5]:
-        for gg in [gg]:
-            gamma = [gg] * (M // 3) + [gb] * (M // 3 * 2)
-            gamma += [gb] * (M - len(gamma))
-            # s = np.linspace(1 / n, 1, n)
-            s = np.log(thetas[:N])
-            tts = []
-
-            for _ in range(repeat):
-                s_idx = list(range(0, len(s)))
-                random.shuffle(s_idx)
-                s = s[s_idx]
-                # np.random.shuffle(s)
-
-                # algo = TwoStageSimultaneousActiveRank(N, M, delta, s, gamma)
-                if algonum == 3:
-                    algo = UnevenUCBActiveRank(N, 1, delta, s, [gg], active=False)
-                elif algonum == 2:
-                    algo = TwoStageSeparateRank(N, M, delta, s, gamma)
-                else:
-                    algo = UnevenUCBActiveRank(N, M, delta, s, gamma, active=algonum)
-                rank_sample_complexity, ranked_list = algo.rank()
-                tts.append(rank_sample_complexity)
-                a_ms = list(ranked_list)
-                a_sorted = sorted(s)
-
-                assert (a_ms == a_sorted)
-                # print("selected users", algo.cM)
-            return int(np.average(tts)), int(np.std(tts))
-
-
-if __name__ == "__main__":
-    repeat = 10
-    delta = 0.2
-    # for delta in np.arange(0.05, 1, 0.05):
-    test_range = range(10, 101, 10)
-    i = 1
-    for gg in [1.0]:
-        print(f"{gg} ----")
-        ox = []
-        oy = []
-        oz = []
-        oo = []
-        for n in test_range:
-            print("Items", n)
-            ox.append(gamma_sweep(algonum=0, repeat=repeat, delta=delta, N=n, gg=gg))
-            oy.append(gamma_sweep(algonum=1, repeat=repeat, delta=delta, N=n, gg=gg))
-            oz.append(gamma_sweep(algonum=2, repeat=repeat, delta=delta, N=n, gg=gg))
-            oo.append(gamma_sweep(algonum=3, repeat=repeat, delta=delta, N=n, gg=gg))
-
-    # return
-        import os
-
-        os.chdir("{:.1f}".format(gg))
-        fmt = lambda x: '{},{}'.format(x[0], x[1])
-        def save_output(fname, param):
-            fout = open(f"{fname}.txt", 'w')
-            fout.write('\n'.join(list(map(fmt, param))))
-            fout.close()
-        save_output("aht-non-act", ox)
-        save_output("aht-act", oy)
-        save_output("aht-staged", oz)
-        save_output("aht-oracle", oo)
-
-        import matplotlib.pyplot
-        import matplotlib.pyplot as plt
-        import numpy as np
-
-        def plot_output(fname, test_range):
-            x = np.array(test_range)
-            y = []
-            std = []
-            fin = open(fname + ".txt")
-            for line in fin.readlines():
-                ax, astd = line.split(',')
-                y.append(int(ax))
-                std.append(int(astd))
-            ax = plt.errorbar(x, y, std, linestyle='-', marker='x')
-            fin.close()
-            return ax
-
-        plt.figure()
-        plot_output("aht-non-act", test_range)
-        plot_output("aht-act", test_range)
-        plot_output("aht-staged", test_range)
-        ax = plot_output("aht-oracle", test_range)
-
-        plt.legend(["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"])
-        fmt = matplotlib.pyplot.ScalarFormatter()
-        ax[0].axes.yaxis.set_major_formatter(fmt)
-        plt.xlabel("Number of items to rank")
-        plt.ylabel("Sample Complexity")
-
-        plt.title("$\gamma_A = 0.5, \gamma_B = {:.1f}$".format(gg))
-        plt.savefig(f'nonacac{i}.pdf')
-        os.chdir("../")
-        i = i + 1
+            self.cU = new_cM
