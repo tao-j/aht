@@ -40,18 +40,18 @@ def gamma_sweep(algonum, repeat, eps=0.1, delta=0.1, N=10, gg=5.0):
                     algo = TwoStageSeparateRank(N, M, delta, s, gamma)
                 else:
                     algo = UnevenUCBActiveRank(N, M, delta, s, gamma, active=algonum)
-                rank_sample_complexity, ranked_list = algo.rank()
+                rank_sample_complexity, arg_list = algo.rank()
                 tts.append(rank_sample_complexity)
-                a_ms = list(ranked_list)
+                a_ms = list(s[arg_list])
                 a_sorted = sorted(s)
 
                 assert (a_ms == a_sorted)
-                # print("selected users", algo.cM)
+                # print("selected users", algo.cU)
             return int(np.average(tts)), int(np.std(tts))
 
 
 if __name__ == "__main__":
-    repeat = 10
+    repeat = 100
     delta = 0.2
     # for delta in np.arange(0.05, 1, 0.05):
     test_range = range(10, 11, 10)

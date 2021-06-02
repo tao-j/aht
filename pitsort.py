@@ -13,23 +13,22 @@ class Node:
 
 
 class PITSort:  # rank from low to high
-    def __init__(self, s, delta):
-        self.s = s
-        self.N = len(self.s)
+    def __init__(self, N, delta):
+        self.N = N
         self.delta = delta
 
         if self.N == 0:
             self.done = True
-            self.ranked_list = []
+            self.arg_list = []
             return
         if self.N == 1:
             self.done = True
-            self.ranked_list = [self.s[0]]
+            self.arg_list = [0]
             return
         else:
             self.done = False
 
-        self.ranked_list = [self.s[0]]
+        self.arg_list = [0]
 
         self.t_iir = 1
         self.t_iai = 1
@@ -152,7 +151,7 @@ class PITSort:  # rank from low to high
                 b_t = 0.5 * t + np.sqrt(t / 2 * np.log2(np.pi * np.pi * t * t / 3 / self.delta_ati_param)) + 1
                 if self.X.count > b_t:
                     inserted = True
-                    self.ranked_list.insert(self.X.right, self.s[self.n_intree])
+                    self.arg_list.insert(self.X.right, self.n_intree)
                     inserted_place = self.X.right
                     self.n_intree += 1
             elif self.X.count > 0:
@@ -181,7 +180,7 @@ class PITSort:  # rank from low to high
                     if node.count > 1 + 5 / 16 * t_max:
                         inserted = True
                         inserted_place = node.right
-                        self.ranked_list.insert(node.right, self.s[self.n_intree])
+                        self.arg_list.insert(node.right, self.n_intree)
                         self.n_intree += 1
                         break
             if inserted:
@@ -229,9 +228,9 @@ if __name__ == "__main__":
                 elif pair[1] == cmp_sort.n_intree:
                     cmp_sort.feedback(0)
                 else:
-                    y = cmp(pair[0], pair[1], cmp_sort.ranked_list, a)
+                    y = cmp(pair[0], pair[1], cmp_sort.arg_list, a)
                     cmp_sort.feedback(y)
-            a_ms = list(cmp_sort.ranked_list)
+            a_ms = list(cmp_sort.arg_list)
             print(a_ms)
             assert (a_ms == a_sorted)
             break

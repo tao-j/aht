@@ -1,6 +1,9 @@
 import numpy as np
 import random
-from cmpsort import CmpSort
+from pitsort import PITSort
+from models import HBTL, Uniform
+
+RAND_CACHE_SIZE = 1000
 
 
 class ActiveRank:
@@ -11,10 +14,31 @@ class ActiveRank:
         self.s = s
         self.gamma = gamma
         self.delta = delta
-        self.cmp_sort = CmpSort(s, delta)
+
+        self.cmp_sort = PITSort(N, delta)
+        self.model = Uniform(s, gamma)
+        # self.model = HBTL(s, gamma)
 
         self.rank_sample_complexity = 0
         self.active = active
+
+        self.rand_i_max = RAND_CACHE_SIZE
+        self.rand_i = np.zeros(self.M, dtype=np.int)
+        self.mt = len(self.cU)
+        self.rand_cache = np.zeros([self.M, RAND_CACHE_SIZE], dtype=np.int)
+        for ui in range(0, self.M):
+            self.rand_cache[ui] = np.random.randint(0, ui + 1, RAND_CACHE_SIZE)
+
+    def sample_user(self):
+        self.mt = len(self.cU) - 1
+        assert self.mt >= 0
+        u = self.rand_cache[self.mt, self.rand_i[self.mt]]
+        self.rand_i[self.mt] += 1
+        if self.rand_i[self.mt] >= self.rand_i_max:
+            self.rand_i[self.mt] = 0
+            self.rand_cache[self.mt] = np.random.randint(0, self.mt + 1, RAND_CACHE_SIZE)
+
+        return u
 
     def eliminate_user(self, eps=0.1, delta=0.1):
         pass
@@ -29,13 +53,13 @@ class ActiveRank:
             elif pair[1] == self.cmp_sort.n_intree:
                 self.cmp_sort.feedback(0)
             else:
-                pack_a = self.atc(pair[0], pair[1], self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param,
-                                  self.cmp_sort.ranked_list, self.s, self.gamma)
+                pack_a = self.atc(pair[0], self.cmp_sort.arg_list[pair[1]], self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param,
+                                  self.cmp_sort.arg_list, self.s, self.gamma)
                 pack_b = self.cmp_sort.feedback(pack_a[0])
                 if self.active:
                     self.post_atc(pack_a, pack_b)
 
-        return self.rank_sample_complexity, self.cmp_sort.ranked_list
+        return self.rank_sample_complexity, self.cmp_sort.arg_list
 
     def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
         pass
@@ -43,11 +67,11 @@ class ActiveRank:
     def post_atc(self, pack_a, pack_b):
         pass
 
-    def init_user_counter(self):
-        raise NotImplementedError
-
-    def update_user_counter(self):
-        raise NotImplementedError
+    # def init_user_counter(self):
+    #     raise NotImplementedError
+    #
+    # def update_user_counter(self):
+    #     raise NotImplementedError
 
 
 class TwoStageSimultaneousActiveRank(ActiveRank):
@@ -65,7 +89,7 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
     def eliminate_user(self, eps=0.1, delta=0.1):
         if len(self.cU) == 1:
             return self.cU
-        s_max = int(np.ceil(2 / eps / eps * np.log2(len(self.cU) / delta)))
+        s_max = int(np.ceil(2 / eps / eps * np.log(len(self.cU) / delta)))
         if self.s_t > s_max:
             mu_t = self.n_t / self.s_t
             i_best = np.argmax(mu_t)
@@ -81,35 +105,25 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
         b_max = np.ceil(1. / 2 / m_t / eps ** 2 * np.log(2 / delta))
         bn = np.zeros(self.M)
         p = 0.5
-        r = 0
+        t = np.arange(1, int(b_max))
+        bb_t = np.sqrt(1. / 2 / (t + 1) / m_t * np.log(np.pi ** 2 * (t + 1) ** 2 / 3 / delta))
         for t in range(1, int(b_max)):
             for u in self.cU:
-                # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-                # s_j = ranked_s[j] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-                pij = np.exp(gamma[u] * original_s[i]) / (
-                        np.exp(gamma[u] * original_s[i]) + np.exp(gamma[u] * ranked_s[j]))
-                # if original_s[i] > ranked_s[j]:
-                #     pij = np.exp(gamma[u] * 4) / (
-                #             np.exp(gamma[u] * 4) + np.exp(gamma[u] * 1))
-                # else:
-                #     pij = np.exp(gamma[u] * 1) / (
-                #             np.exp(gamma[u] * 4) + np.exp(gamma[u] * 1))
-                y = 1 if np.random.random() < pij else 0
+                y = self.model.sample_pair(u, i, j)
                 if y == 1:
                     w += 1
                     bn[u] += 1
-            r = t
-            b_t = np.sqrt(1. / 2 / (r + 1) / m_t * np.log(np.pi ** 2 * (r + 1) ** 2 / 3 / delta))
-            p = w / r / len(self.cU)
+            b_t = bb_t[t - 1]
+            p = w / t / len(self.cU)
             if p > 0.5 + b_t:
                 break
             if p < 0.5 - b_t:
                 break
 
         atc_y = 1 if p > 0.5 else 0
-        bn = bn if p > 0.5 else r - bn
-        self.rank_sample_complexity += r * len(self.cU)
-        return atc_y, bn, r
+        bn = bn if p > 0.5 else t - bn
+        self.rank_sample_complexity += t * len(self.cU)
+        return atc_y, bn, t
 
 
 class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
@@ -138,21 +152,11 @@ class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
         while True:
             if len(self.cU) == 1:
                 return self.cU, np.sum(bs)
-            b_max = int(np.ceil(4 / eps / eps * np.log2(3 / delta)))
+            b_max = int(np.ceil(4 / eps / eps * np.log(3 / delta)))
             for t in range(1, int(b_max)):
                 for u in self.cU:
                     bs[u] += 1
-                    # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-                    # s_j = ranked_s[j] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-                    # pij = np.exp(self.gamma[u] * self.s[i]) / (
-                            # np.exp(self.gamma[u] * self.s[i]) + np.exp(self.gamma[u] * self.ranked_s[j]))
-                    if self.s[0] > self.s[1]:
-                        pij = np.exp(self.gamma[u] * 4) / (
-                                np.exp(self.gamma[u] * 4) + np.exp(self.gamma[u] * 1))
-                    else:
-                        pij = np.exp(self.gamma[u] * 1) / (
-                                np.exp(self.gamma[u] * 4) + np.exp(self.gamma[u] * 1))
-                    y = 1 if np.random.random() < pij else 0
+                    y = self.model.sample_pair(u, 0, 1)
                     if y == 1:
                         bn[u] += 1
             eps = 3 / 4 * eps
@@ -188,7 +192,7 @@ class UnevenUCBActiveRank(ActiveRank):
         inserted, inserted_place = pack_b
         if inserted:
             assert inserted_place != -1
-            inserted_idx = len(self.cmp_sort.ranked_list)
+            inserted_idx = len(self.cmp_sort.arg_list)
             for j in range(inserted_idx):
                 if inserted_place > j:
                     self.bn += self.A[j]
@@ -202,47 +206,36 @@ class UnevenUCBActiveRank(ActiveRank):
         t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log(2 / delta)))
         p = 0.5
         w = 0
+        t = np.arange(1, t_max + 1)
+        bb_t = np.sqrt(1. / 2 / t * np.log(np.pi * np.pi * t * t / 3 / delta))
         for t in range(1, t_max + 1):
-            u = np.random.choice(self.cU, 1)[0]
+            u = self.sample_user()
             self.bs[u] += 1
-            self.rank_sample_complexity += 1
-            # s_i = original_s[i] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-            # s_j = ranked_s[j] + np.random.gumbel(0.5772 * gamma[u], gamma[u])
-            pij = np.exp(gamma[u] * original_s[i]) / (
-                    np.exp(gamma[u] * original_s[i]) + np.exp(gamma[u] * ranked_s[j]))
-            # assert original_s[i] != ranked_s[j]
-            # if original_s[i] > ranked_s[j]:
-            #     pij = np.exp(gamma[u] * 4) / (
-            #         np.exp(gamma[u] * 4) + np.exp(gamma[u] * 1))
-            # else:
-            #     pij = np.exp(gamma[u] * 1) / (
-            #         np.exp(gamma[u] * 4) + np.exp(gamma[u] * 1))
-            y = 1 if np.random.random() < pij else 0 # i > j
+            y = self.model.sample_pair(u, i, j)
             if y == 1:
                 self.A[j, u] += 1
                 w += 1
             else:
                 self.B[j, u] += 1
-            b_t = np.sqrt(1. / 2 / t * np.log(np.pi * np.pi * t * t / 3 / delta))
+            b_t = bb_t[t - 1]
             p = w / t
             if p > 0.5 + b_t:
                 break
             if p < 0.5 - b_t:
                 break
 
+        self.rank_sample_complexity += w
         atc_y = 1 if p > 0.5 else 0
         return atc_y, self.A, self.bs
 
     def eliminate_user(self, eps=0.1, delta=0.1):
         smin = min(self.bs[self.cU])
-        mu = self.bn / self.bs
-        if smin == 0:
-            assert False
-        if np.log2(2 * len(self.cU) / delta) / 2 / smin < 0:
-            assert False
-        r = np.sqrt(np.log2(2 * len(self.cU) / delta) / 2 / smin)
+        mu = self.bn / (self.bs + 1e-10)
+        assert smin != 0
+        assert np.log(2 * len(self.cU) / delta) / 2 / smin > 0
+        r = np.sqrt(np.log(2 * len(self.cU) / delta) / 2 / smin)
         stotal = sum(self.bs)
-        if stotal > 2 * self.M * self.M * np.log2(self.N * self.M / delta):
+        if stotal > 2 * self.M * self.M * np.log(self.N * self.M / delta):
             bucb = mu + r
             blcb = mu - r
             to_remove = set()
