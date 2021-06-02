@@ -1,6 +1,6 @@
 import numpy as np
 
-RAND_CACHE_SIZE = 1000
+RAND_CACHE_SIZE = 100000
 
 
 class Model:

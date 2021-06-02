@@ -3,7 +3,7 @@ import random
 from pitsort import PITSort
 from models import HBTL, Uniform
 
-RAND_CACHE_SIZE = 1000
+RAND_CACHE_SIZE = 100000
 
 
 class ActiveRank:
@@ -105,7 +105,7 @@ class TwoStageSimultaneousActiveRank(ActiveRank):
         b_max = np.ceil(1. / 2 / m_t / eps ** 2 * np.log(2 / delta))
         bn = np.zeros(self.M)
         p = 0.5
-        t = np.arange(1, int(b_max))
+        t = np.arange(1, int(b_max) + 1)
         bb_t = np.sqrt(1. / 2 / (t + 1) / m_t * np.log(np.pi ** 2 * (t + 1) ** 2 / 3 / delta))
         for t in range(1, int(b_max)):
             for u in self.cU:
