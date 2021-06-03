@@ -66,6 +66,11 @@ if __name__ == "__main__":
     #     for gg in [2.5, 5, 10]:
 
     outdir = f"r{repeat}"
+    outdir = "output_plots"
+    if not os.path.isdir(outdir):
+        os.mkdir(outdir)
+    elif os.path.isfile(outdir):
+        exit(1)
     outdir = "output"
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
@@ -103,6 +108,43 @@ if __name__ == "__main__":
                             f.close()
                             os.system(f"sbatch {sbatch_name}")
                             print("invoked", fname, args)
+
+    if command == "plot":
+        import matplotlib.pyplot as plt
+        for m in m_test_range:
+            for gb in gb_range:
+                for gg in gg_range:
+                    plt.figure()
+                    for algonum in range(0, 4):
+                        x = np.array(n_test_range)
+                        y = []
+                        stds = []
+                        for n in n_test_range:
+                            fname = f"n{n}-m{m}-gg{gg:.2f}-gb{gb:.2f}-algo{algonum}"
+
+                            log_name = os.path.join(outdir, f"{fname}.log.log")
+                            res_name = os.path.join(outdir, f"{fname}.txt")
+                            if not os.path.isfile(log_name) or not os.path.isfile(res_name):
+                                print("no", fname)
+                                continue
+                            logstr = open(log_name).read()
+                            if len(logstr) != 0:
+                                print(logstr)
+                            avg, std = list(map(int, open(res_name).read().split()))
+                            y.append(avg)
+                            stds.append(std)
+                        ax = plt.errorbar(x, y, stds, linestyle='-', marker='x')
+
+                    plt.legend(
+                        ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"])
+                    fmt = plt.ScalarFormatter()
+                    ax[0].axes.yaxis.set_major_formatter(fmt)
+                    plt.xlabel("Number of items to rank")
+                    plt.ylabel("Sample Complexity")
+                    plt.title(f"$\gamma_A = {gb:.1f}, \gamma_B = {gg:.1f}$")
+                    plt.savefig(f'output_plots/m{m}gb{gb}gg{gg}.pdf')
+                    print(f'output_plots/m{m}gb{gb}gg{gg}.pdf')
+                    plt.close()
 
     elif command == "run":
         fname = sys.argv[2]
