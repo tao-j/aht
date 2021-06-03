@@ -111,6 +111,7 @@ if __name__ == "__main__":
 
     if command == "plot":
         import matplotlib.pyplot as plt
+        tex_out = open("output_plots/supp_plot.tex", 'w')
         for m in m_test_range:
             for gb in gb_range:
                 for gg in gg_range:
@@ -136,15 +137,31 @@ if __name__ == "__main__":
                         ax = plt.errorbar(x, y, stds, linestyle='-', marker='x')
 
                     plt.legend(
-                        ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"])
+                        ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"],
+                        loc="upper left")
                     fmt = plt.ScalarFormatter()
                     ax[0].axes.yaxis.set_major_formatter(fmt)
                     plt.xlabel("Number of items to rank")
                     plt.ylabel("Sample Complexity")
                     plt.title(f"$\gamma_A = {gb:.1f}, \gamma_B = {gg:.1f}$")
-                    plt.savefig(f'output_plots/m{m}gb{gb}gg{gg}.pdf')
-                    print(f'output_plots/m{m}gb{gb}gg{gg}.pdf')
+                    fig_name = f'output_plots/m{m}gb{gb}gg{gg}.pdf'
+                    plt.savefig(fig_name)
+                    print(fig_name)
                     plt.close()
+                tex_figs_template = f'''
+                \\begin{{figure}}[H]
+                \\centering
+                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[0]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[0]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[0]}}}}}
+                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[1]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[1]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[1]}}}}}
+                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[2]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[2]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[2]}}}}}
+    
+                \\caption{{When $M = {m}$. Sample complexities v.s. number of items for all algorithms. (a) (b) and (c) are different heterogeneous user settings where the accuracy of two group of users differs.
+                \\label{{fig:exp-m{m}-gb{gb}}}
+                }}
+                \\end{{figure}}
+                '''
+                tex_out.write(tex_figs_template)
+        tex_out.close()
 
     elif command == "run":
         fname = sys.argv[2]
