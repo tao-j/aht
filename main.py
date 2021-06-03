@@ -4,6 +4,7 @@ import numpy as np
 import os
 import sys
 import subprocess
+from sbatch import sbatch_template
 
 
 def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
@@ -54,10 +55,10 @@ def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
 
 
 if __name__ == "__main__":
-    repeat = 1
+    repeat = 100
     delta = 0.2
     # for delta in np.arange(0.05, 1, 0.05):
-    n_test_range = list(range(10, 11, 10))
+    n_test_range = list(range(10, 101, 10))
     m_test_range = [9, 18, 36]
     gg_range = [0.5, 1.0, 2.5]
     gb_range = [0.25, 0.5, 1.0]
@@ -79,16 +80,29 @@ if __name__ == "__main__":
                     for gb in gb_range:
                         for algonum in range(0, 4):
                             fname = f"n{n}-m{m}-gg{gg:.2f}-gb{gb:.2f}-algo{algonum}"
-                            args = ["python", "main.py", "run", fname]
-                            print("invoked", fname, args)
+                            args = ["python3", "main.py", "run", fname]
                             log_name = os.path.join(outdir, f"{fname}.log")
                             if os.path.isfile(log_name):
-                                # continue # skip when task exists
-                                pass # override existing task
-                            flog = open(log_name, 'w')
-                            with flog:
-                                p = subprocess.Popen(args, stdout=flog, stderr=flog,
-                                                     start_new_session=True)
+                                continue # skip when task exists
+                                # pass # override existing task
+                            # flog = open(log_name, 'w')
+                            # with flog:
+                            #     p = subprocess.Popen(args, stdout=flog, stderr=flog,
+                            #                          start_new_session=True)
+                            kwargs = {
+                                'job_name': fname,
+                                'file_err': log_name,
+                                'file_out': log_name,
+                                'email': '',
+                                'args': ' '.join(args)
+                            }
+                            sbatch = sbatch_template.format(**kwargs)
+                            sbatch_name = os.path.join(outdir, f"{fname}.sbatch")
+                            f = open(sbatch_name, 'w')
+                            f.write(sbatch)
+                            f.close()
+                            os.system(f"sbatch {sbatch_name}")
+                            print("invoked", fname, args)
 
     elif command == "run":
         fname = sys.argv[2]
