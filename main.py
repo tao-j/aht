@@ -1,4 +1,4 @@
-from aht import UnevenUCBActiveRank, TwoStageSimultaneousActiveRank, TwoStageSeparateRank
+from aht import UnevenUCBActiveRank, TwoStageSeparateRank
 import random
 import numpy as np
 import os
@@ -34,7 +34,7 @@ def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
         # algo = TwoStageSimultaneousActiveRank(N, M, delta, s, gamma)
         if algonum == 3:
             # oracle
-            algo = UnevenUCBActiveRank(N, 1, delta, s, [gg], active=False)
+            algo = UnevenUCBActiveRank(N, 1, delta, s, [max(gg, gb)], active=False)
         elif algonum == 2:
             # two stage
             algo = TwoStageSeparateRank(N, M, delta, s, gamma)
@@ -64,7 +64,9 @@ if __name__ == "__main__":
     gb_range = [0.25, 0.5, 1.0]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
-
+    invoker = "sequential"
+    invoker = "subprocess"
+    invoker = "sbatch"
     outdir = f"r{repeat}"
     outdir = "output_plots"
     if not os.path.isdir(outdir):
@@ -88,26 +90,36 @@ if __name__ == "__main__":
                             args = ["python3", "main.py", "run", fname]
                             log_name = os.path.join(outdir, f"{fname}.log")
                             if os.path.isfile(log_name):
-                                continue # skip when task exists
-                                # pass # override existing task
-                            # flog = open(log_name, 'w')
-                            # with flog:
-                            #     p = subprocess.Popen(args, stdout=flog, stderr=flog,
-                            #                          start_new_session=True)
-                            kwargs = {
-                                'job_name': fname,
-                                'file_err': log_name,
-                                'file_out': log_name,
-                                'email': '',
-                                'args': ' '.join(args)
-                            }
-                            sbatch = sbatch_template.format(**kwargs)
-                            sbatch_name = os.path.join(outdir, f"{fname}.sbatch")
-                            f = open(sbatch_name, 'w')
-                            f.write(sbatch)
-                            f.close()
-                            os.system(f"sbatch {sbatch_name}")
-                            print("invoked", fname, args)
+                                # continue # skip when task exists
+                                pass # override existing task
+
+                            if invoker == "subprocess":
+                                flog = open(log_name, 'w')
+                                with flog:
+                                    p = subprocess.Popen(args, stdout=flog, stderr=flog,
+                                                         start_new_session=True)
+                                    print(f"spawned {log_name}")
+
+                            if invoker == "sbatch":
+                                kwargs = {
+                                    'job_name': fname,
+                                    'file_err': log_name,
+                                    'file_out': log_name,
+                                    'email': '',
+                                    'args': ' '.join(args)
+                                }
+                                sbatch = sbatch_template.format(**kwargs)
+                                sbatch_name = os.path.join(outdir, f"{fname}.sbatch")
+                                f = open(sbatch_name, 'w')
+                                f.write(sbatch)
+                                f.close()
+                                os.system(f"sbatch {sbatch_name}")
+                                print(f"sbatch {sbatch_name} done")
+
+                            if invoker == "sequential":
+                                print("seq started", fname)
+                                avg, std = run(algonum, repeat, 0.1, delta, n, m, gg, gb)
+                                print(avg, std)
 
     if command == "plot":
         import matplotlib.pyplot as plt
@@ -123,14 +135,14 @@ if __name__ == "__main__":
                         for n in n_test_range:
                             fname = f"n{n}-m{m}-gg{gg:.2f}-gb{gb:.2f}-algo{algonum}"
 
-                            log_name = os.path.join(outdir, f"{fname}.log.log")
+                            log_name = os.path.join(outdir, f"{fname}.log")
                             res_name = os.path.join(outdir, f"{fname}.txt")
                             if not os.path.isfile(log_name) or not os.path.isfile(res_name):
                                 print("no", fname)
                                 continue
                             logstr = open(log_name).read()
                             if len(logstr) != 0:
-                                print(logstr)
+                                print("wrong", fname, logstr)
                             avg, std = list(map(int, open(res_name).read().split()))
                             y.append(avg)
                             stds.append(std)
@@ -151,9 +163,9 @@ if __name__ == "__main__":
                 tex_figs_template = f'''
                 \\begin{{figure}}[H]
                 \\centering
-                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[0]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[0]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[0]}}}}}
-                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[1]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[1]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[1]}}}}}
                 \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[2]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[2]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[2]}}}}}
+                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[1]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[1]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[1]}}}}}
+                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[0]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[0]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[0]}}}}}
     
                 \\caption{{When $M = {m}$. Sample complexities v.s. number of items for all algorithms. (a) (b) and (c) are different heterogeneous user settings where the accuracy of two group of users differs.
                 \\label{{fig:exp-m{m}-gb{gb}}}

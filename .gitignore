@@ -1,4 +1,3 @@
-output
-output_plots
+output*
 __pycache__
 .idea

@@ -74,106 +74,6 @@ class ActiveRank:
     #     raise NotImplementedError
 
 
-class TwoStageSimultaneousActiveRank(ActiveRank):
-    def __init__(self, N, M, delta, s, gamma, active=True):
-        super().__init__(N, M, delta, s, gamma, active)
-        self.n_t = np.zeros(M)
-        self.s_t = 0
-
-    def post_atc(self, pack_a, pack_b):
-        y, bn, r = pack_a
-        self.s_t += r
-        self.n_t += bn
-        self.cU = self.eliminate_user(delta=delta)
-
-    def eliminate_user(self, eps=0.1, delta=0.1):
-        if len(self.cU) == 1:
-            return self.cU
-        s_max = int(np.ceil(2 / eps / eps * np.log(len(self.cU) / delta)))
-        if self.s_t > s_max:
-            mu_t = self.n_t / self.s_t
-            i_best = np.argmax(mu_t)
-            self.cU = [i_best]
-        return self.cU
-
-    def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
-        """
-        Do AttemptToCompare in rounds. One round asks every user once.
-        """
-        w = 0
-        m_t = len(self.cU)
-        b_max = np.ceil(1. / 2 / m_t / eps ** 2 * np.log(2 / delta))
-        bn = np.zeros(self.M)
-        p = 0.5
-        t = np.arange(1, int(b_max) + 1)
-        bb_t = np.sqrt(1. / 2 / (t + 1) / m_t * np.log(np.pi ** 2 * (t + 1) ** 2 / 3 / delta))
-        for t in range(1, int(b_max)):
-            for u in self.cU:
-                y = self.model.sample_pair(u, i, j)
-                if y == 1:
-                    w += 1
-                    bn[u] += 1
-            b_t = bb_t[t - 1]
-            p = w / t / len(self.cU)
-            if p > 0.5 + b_t:
-                break
-            if p < 0.5 - b_t:
-                break
-
-        atc_y = 1 if p > 0.5 else 0
-        bn = bn if p > 0.5 else t - bn
-        self.rank_sample_complexity += t * len(self.cU)
-        return atc_y, bn, t
-
-
-class TwoStageSeparateRank(TwoStageSimultaneousActiveRank):
-    def __init__(self, N, M, delta, s, gamma, active=True):
-        super().__init__(N, M, delta, s, gamma, active)
-        # rank the first pair of item
-        algo = TwoStageSimultaneousActiveRank(2, M, delta, s[:2], gamma, active=False)
-        cost1, ranked = algo.rank()
-        if ranked[0] != s[0]:
-            self.gt_y = 1
-        else:
-            self.gt_y = 0
-        eps_user, cost2 = self.eliminate_user()
-        self.rank_sample_complexity += cost2 + cost1
-
-    def post_atc(self, pack_a, pack_b):
-        pass
-
-    def eliminate_user(self, eps=0.50, delta=0.25):
-        # medium elimination
-        eps = eps / 4
-        delta = delta / 2
-
-        bn = np.zeros(self.M)
-        bs = np.zeros(self.M)
-        while True:
-            if len(self.cU) == 1:
-                return self.cU, np.sum(bs)
-            b_max = int(np.ceil(4 / eps / eps * np.log(3 / delta)))
-            for t in range(1, int(b_max)):
-                for u in self.cU:
-                    bs[u] += 1
-                    y = self.model.sample_pair(u, 0, 1)
-                    if y == 1:
-                        bn[u] += 1
-            eps = 3 / 4 * eps
-            delta = delta / 2
-            mu = bn / bs
-            if self.gt_y == 0:
-                mu = 1 - mu
-            ranked_u_cm = np.sort(mu[self.cU])
-            ranked_u_idx = np.argsort(mu[self.cU])
-            keep = len(self.cU) // 2
-            self.cU = self.cU[ranked_u_idx[keep:]]
-
-    def rank(self):
-        cost, ranked = super().rank()
-        return cost, ranked
-
-
 class UnevenUCBActiveRank(ActiveRank):
     def __init__(self, N, M, delta, s, gamma, active=True):
         super().__init__(N, M, delta, s, gamma, active)
@@ -203,11 +103,11 @@ class UnevenUCBActiveRank(ActiveRank):
             self.eliminate_user()
 
     def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
-        t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log(2 / delta)))
+        t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log2(2 / delta)))
         p = 0.5
         w = 0
         t = np.arange(1, t_max + 1)
-        bb_t = np.sqrt(1. / 2 / t * np.log(np.pi * np.pi * t * t / 3 / delta))
+        bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
         for t in range(1, t_max + 1):
             u = self.sample_user()
             self.bs[u] += 1
@@ -232,10 +132,10 @@ class UnevenUCBActiveRank(ActiveRank):
         smin = min(self.bs[self.cU])
         mu = self.bn / (self.bs + 1e-10)
         assert smin != 0
-        assert np.log(2 * len(self.cU) / delta) / 2 / smin > 0
-        r = np.sqrt(np.log(2 * len(self.cU) / delta) / 2 / smin)
+        assert np.log2(2 * len(self.cU) / delta) / 2 / smin > 0
+        r = np.sqrt(np.log2(2 * len(self.cU) / delta) / 2 / smin)
         stotal = sum(self.bs)
-        if stotal > 2 * self.M * self.M * np.log(self.N * self.M / delta):
+        if stotal > 2 * self.M * self.M * np.log2(self.N * self.M / delta):
             bucb = mu + r
             blcb = mu - r
             to_remove = set()
@@ -251,3 +151,51 @@ class UnevenUCBActiveRank(ActiveRank):
             if new_cM == []:
                 assert False
             self.cU = new_cM
+
+
+class TwoStageSeparateRank(UnevenUCBActiveRank):
+    def __init__(self, N, M, delta, s, gamma, active=False):
+        super().__init__(N, M, delta, s, gamma, active)
+        # rank the first pair of item
+        algo = UnevenUCBActiveRank(2, M, delta, s[:2], gamma, active=False)
+        cost1, ranked = algo.rank()
+        if ranked[0] != s[0]:
+            self.gt_y = 1
+        else:
+            self.gt_y = 0
+        eps_user, cost2 = self.eliminate_user()
+        self.rank_sample_complexity += cost2 + cost1
+
+    def post_atc(self, pack_a, pack_b):
+        pass
+
+    def eliminate_user(self, eps=0.50, delta=0.25):
+        # medium elimination
+        eps = eps / 4
+        delta = delta / 2
+
+        bn = np.zeros(self.M)
+        bs = np.zeros(self.M)
+        while True:
+            if len(self.cU) == 1:
+                return self.cU, np.sum(bs)
+            b_max = int(np.ceil(4 / eps / eps * np.log2(3 / delta)))
+            for t in range(1, int(b_max)):
+                for u in self.cU:
+                    bs[u] += 1
+                    y = self.model.sample_pair(u, 0, 1)
+                    if y == 1:
+                        bn[u] += 1
+            eps = 3 / 4 * eps
+            delta = delta / 2
+            mu = bn / bs
+            if self.gt_y == 0:
+                mu = 1 - mu
+            ranked_u_cm = np.sort(mu[self.cU])
+            ranked_u_idx = np.argsort(mu[self.cU])
+            keep = len(self.cU) // 2
+            self.cU = self.cU[ranked_u_idx[keep:]]
+
+    def rank(self):
+        cost, ranked = super().rank()
+        return cost, ranked
