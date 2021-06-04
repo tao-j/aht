@@ -125,6 +125,8 @@ if __name__ == "__main__":
         import matplotlib.pyplot as plt
         tex_out = open("output_plots/supp_plot.tex", 'w')
         for m in m_test_range:
+            tex_subfigures = []
+            tex_tabulars = []
             for gb in gb_range:
                 for gg in gg_range:
                     plt.figure()
@@ -146,7 +148,8 @@ if __name__ == "__main__":
                             avg, std = list(map(int, open(res_name).read().split()))
                             y.append(avg)
                             stds.append(std)
-                        ax = plt.errorbar(x, y, stds, linestyle='-', marker='x')
+                        markers = ['+', 'x', 'v', '.']
+                        ax = plt.errorbar(x, y, stds, linestyle='-', marker=markers[algonum])
 
                     plt.legend(
                         ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"],
@@ -155,24 +158,25 @@ if __name__ == "__main__":
                     ax[0].axes.yaxis.set_major_formatter(fmt)
                     plt.xlabel("Number of items to rank")
                     plt.ylabel("Sample Complexity")
-                    plt.title(f"$\gamma_A = {gb:.1f}, \gamma_B = {gg:.1f}$")
+                    plt.title(f"$\gamma_A = {gb}, \gamma_B = {gg}$")
                     fig_name = f'output_plots/m{m}gb{gb}gg{gg}.pdf'
                     plt.savefig(fig_name)
                     print(fig_name)
                     plt.close()
-                tex_figs_template = f'''
-                \\begin{{figure}}[H]
-                \\centering
-                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[2]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[2]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[2]}}}}}
-                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[1]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[1]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[1]}}}}}
-                \\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg_range[0]}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg_range[0]}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg_range[0]}}}}}
-    
-                \\caption{{When $M = {m}$. Sample complexities v.s. number of items for all algorithms. (a) (b) and (c) are different heterogeneous user settings where the accuracy of two group of users differs.
-                \\label{{fig:exp-m{m}-gb{gb}}}
-                }}
-                \\end{{figure}}
-                '''
-                tex_out.write(tex_figs_template)
+
+                    tex_subfigure_template = f'''\\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg}}}}}'''
+                    tex_subfigures.append(tex_subfigure_template)
+            tex_subfigure_str = '\n'.join(tex_subfigures)
+            tex_figs_template = f'''
+            \\begin{{figure}}[H]
+            \\centering
+            {tex_subfigure_str}
+            \\caption{{When $M = {m}$. Sample complexities v.s. number of items for all algorithms. The 3-by-3 grid shows different heterogeneous user settings where the accuracy of two group of users differs.
+            \\label{{fig:exp-m{m}}}
+            }}
+            \\end{{figure}}
+            '''
+            tex_out.write(tex_figs_template)
         tex_out.close()
 
     elif command == "run":

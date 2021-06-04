@@ -163,8 +163,11 @@ class TwoStageSeparateRank(UnevenUCBActiveRank):
             self.gt_y = 1
         else:
             self.gt_y = 0
-        eps_user, cost2 = self.eliminate_user()
-        self.rank_sample_complexity += cost2 + cost1
+        eps = 0.15
+        eps_user, cost2 = self.eliminate_user(eps=eps)
+        cost_naive = 4 * np.log2(2 * self.M / delta) / (eps ** 2) * self.M
+        # print(f"naive {cost_naive * 64}, medium {cost2}")
+        self.rank_sample_complexity += cost_naive + cost1
 
     def post_atc(self, pack_a, pack_b):
         pass
