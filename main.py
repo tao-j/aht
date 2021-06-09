@@ -7,7 +7,7 @@ import subprocess
 from sbatch import sbatch_template
 
 
-def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
+def run(algonum, repeat, eps=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=9, gg=5.0, gb=0.5):
     random.seed(123)
     np.random.seed(123)
 
@@ -34,16 +34,16 @@ def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
         # algo = TwoStageSimultaneousActiveRank(N, M, delta, s, gamma)
         if algonum == 3:
             # oracle
-            algo = UnevenUCBActiveRank(N, 1, delta, s, [max(gg, gb)], active=False)
+            algo = UnevenUCBActiveRank(N, 1, delta_rank, delta_user, s, [max(gg, gb)], active=False)
         elif algonum == 2:
             # two stage
-            algo = TwoStageSeparateRank(N, M, delta, s, gamma)
+            algo = TwoStageSeparateRank(N, M, delta_rank, delta_user, s, gamma)
         elif algonum == 1:
             # act
-            algo = UnevenUCBActiveRank(N, M, delta, s, gamma, active=True)
+            algo = UnevenUCBActiveRank(N, M, delta_rank, delta_user, s, gamma, active=True)
         elif algonum == 0:
             # non-act
-            algo = UnevenUCBActiveRank(N, M, delta, s, gamma, active=False)
+            algo = UnevenUCBActiveRank(N, M, delta_rank, delta_user, s, gamma, active=False)
         rank_sample_complexity, arg_list = algo.rank()
         tts.append(rank_sample_complexity)
         a_ms = list(s[arg_list])
@@ -55,18 +55,20 @@ def run(algonum, repeat, eps=0.1, delta=0.1, N=10, M=9, gg=5.0, gb=0.5):
 
 
 if __name__ == "__main__":
-    repeat = 100
-    delta = 0.2
+    repeat = 1
+    delta_rank = 0.2
+    delta_user = 0.5
+    eps = 0.15
     # for delta in np.arange(0.05, 1, 0.05):
-    n_test_range = list(range(10, 101, 10))
-    m_test_range = [9, 18, 36]
-    gg_range = [0.5, 1.0, 2.5]
-    gb_range = [0.25, 0.5, 1.0]
+    n_test_range = list(range(10, 101, 10))[0:1]
+    m_test_range = [9, 18, 36][0:1]
+    gg_range = [0.5, 1.0, 2.5][0:1]
+    gb_range = [0.25, 0.5, 1.0][0:1]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
-    invoker = "sequential"
     invoker = "subprocess"
     invoker = "sbatch"
+    invoker = "sequential"
     outdir = f"r{repeat}"
     outdir = "output_plots"
     if not os.path.isdir(outdir):
@@ -118,7 +120,7 @@ if __name__ == "__main__":
 
                             if invoker == "sequential":
                                 print("seq started", fname)
-                                avg, std = run(algonum, repeat, 0.1, delta, n, m, gg, gb)
+                                avg, std = run(algonum, repeat, 0.1, delta_rank, delta_user, n, m, gg, gb)
                                 print(avg, std)
 
     if command == "plot":
@@ -188,7 +190,7 @@ if __name__ == "__main__":
         gb = float(gb[2:])
         algonum = int(algonum[4:])
 
-        avg, std = run(algonum, repeat, 0.1, delta, n, m, gg, gb)
+        avg, std = run(algonum, repeat, eps, delta_user, delta_rank, n, m, gg, gb)
         f = open(os.path.join(outdir, f"{fname}.txt"), 'w')
         f.write(f"{avg} {std}")
         f.close()
