@@ -55,15 +55,15 @@ def run(algonum, repeat, eps=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=9, gg
 
 
 if __name__ == "__main__":
-    repeat = 1
+    repeat = 100
     delta_rank = 0.2
     delta_user = 0.5
     eps = 0.15
     # for delta in np.arange(0.05, 1, 0.05):
-    n_test_range = list(range(10, 101, 10))[0:1]
-    m_test_range = [9, 18, 36][0:1]
-    gg_range = [0.5, 1.0, 2.5][0:1]
-    gb_range = [0.25, 0.5, 1.0][0:1]
+    n_test_range = list(range(10, 101, 10))
+    m_test_range = [9, 18, 36]
+    gg_range = [0.5, 1.0, 2.5]
+    gb_range = [0.25, 0.5, 1.0]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
     invoker = "subprocess"

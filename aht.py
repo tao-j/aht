@@ -30,7 +30,7 @@ class ActiveRank:
         for ui in range(0, self.M):
             self.rand_cache[ui] = np.random.randint(0, ui + 1, RAND_CACHE_SIZE)
 
-    def sample_user(self):
+    def sample_user_idx(self):
         self.mt = len(self.cU) - 1
         assert self.mt >= 0
         u = self.rand_cache[self.mt, self.rand_i[self.mt]]
@@ -110,7 +110,7 @@ class UnevenUCBActiveRank(ActiveRank):
         t = np.arange(1, t_max + 1)
         bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
         for t in range(1, t_max + 1):
-            u = self.sample_user()
+            u = self.cU[self.sample_user_idx()]
             self.bs[u] += 1
             y = self.model.sample_pair(u, i, j)
             if y == 1:
@@ -129,11 +129,12 @@ class UnevenUCBActiveRank(ActiveRank):
         atc_y = 1 if p > 0.5 else 0
         return atc_y, self.A, self.bs
 
-    def eliminate_user(self, eps=0.1, delta_user=0.1):
+    def eliminate_user(self, eps=0.1, delta_user=0.5):
         smin = min(self.bs[self.cU])
         mu = self.bn / (self.bs + 1e-10)
         delta = delta_user
-        assert smin != 0
+        if smin == 0:
+            return eps
         assert np.log2(2 * len(self.cU) / delta) / 2 / smin > 0
         r = np.sqrt(np.log2(2 * len(self.cU) / delta) / 2 / smin)
         stotal = sum(self.bs)
@@ -153,6 +154,8 @@ class UnevenUCBActiveRank(ActiveRank):
             if new_cM == []:
                 assert False
             self.cU = new_cM
+
+        return r
 
 
 class TwoStageSeparateRank(UnevenUCBActiveRank):
