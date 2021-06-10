@@ -168,41 +168,23 @@ class TwoStageSeparateRank(UnevenUCBActiveRank):
             self.gt_y = 1
         else:
             self.gt_y = 0
-        eps = 0.15
-        eps_user, cost2 = self.eliminate_user(eps=eps)
-        cost_naive = 4 * np.log2(2 * self.M / delta_rank) / (eps ** 2) * self.M
+        eps = 0.08
+        r = eps
+        while r >= eps:
+            u = self.cU[self.sample_user_idx()]
+            y = self.model.sample_pair(u, 0, 1)
+            self.bs[u] += 1
+            if y == self.gt_y:
+                self.bn[u] += 1
+            self.rank_sample_complexity += 1
+            r = self.eliminate_user(eps=eps)
+        # cost_naive = 4 * np.log2(2 * self.M / delta_rank) / (eps ** 2) * self.M
         # print(f"naive {cost_naive * 64}, medium {cost2}")
-        self.rank_sample_complexity += cost_naive + cost1
+        # self.rank_sample_complexity += cost_naive + cost1
+        self.rank_sample_complexity += cost1
 
     def post_atc(self, pack_a, pack_b):
         pass
-
-    def eliminate_user(self, eps=0.50, delta_user=0.25):
-        # medium elimination
-        eps = eps / 4
-        delta = delta_user / 2
-
-        bn = np.zeros(self.M)
-        bs = np.zeros(self.M)
-        while True:
-            if len(self.cU) == 1:
-                return self.cU, np.sum(bs)
-            b_max = int(np.ceil(4 / eps / eps * np.log2(3 / delta)))
-            for t in range(1, int(b_max)):
-                for u in self.cU:
-                    bs[u] += 1
-                    y = self.model.sample_pair(u, 0, 1)
-                    if y == 1:
-                        bn[u] += 1
-            eps = 3 / 4 * eps
-            delta = delta / 2
-            mu = bn / bs
-            if self.gt_y == 0:
-                mu = 1 - mu
-            ranked_u_cm = np.sort(mu[self.cU])
-            ranked_u_idx = np.argsort(mu[self.cU])
-            keep = len(self.cU) // 2
-            self.cU = self.cU[ranked_u_idx[keep:]]
 
     def rank(self):
         cost, ranked = super().rank()
