@@ -7,12 +7,13 @@ RAND_CACHE_SIZE = 100000
 
 
 class ActiveRank:
-    def __init__(self, N, M, delta_rank, delta_user, s, gamma, active=True):
+    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
         self.N = N
         self.M = M
         self.cU = np.array(range(0, M))
         self.s = s
         self.gamma = gamma
+        self.eps_user = eps_user
         self.delta_rank = delta_rank
         self.delta_user = delta_user
 
@@ -41,7 +42,7 @@ class ActiveRank:
 
         return u
 
-    def eliminate_user(self, eps=0.1, delta_user=0.1):
+    def eliminate_user(self):
         pass
 
     def rank(self):
@@ -76,8 +77,8 @@ class ActiveRank:
 
 
 class UnevenUCBActiveRank(ActiveRank):
-    def __init__(self, N, M, delta_rank, delta_user, s, gamma, active=True):
-        super().__init__(N, M, delta_rank, delta_user, s, gamma, active)
+    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
+        super().__init__(N, M, eps_user, delta_rank, delta_user, s, gamma, active)
         # number of times user is asked
         self.bs = np.zeros(M)
         # number of times user is correct
@@ -129,10 +130,11 @@ class UnevenUCBActiveRank(ActiveRank):
         atc_y = 1 if p > 0.5 else 0
         return atc_y, self.A, self.bs
 
-    def eliminate_user(self, eps=0.1, delta_user=0.5):
+    def eliminate_user(self):
         smin = min(self.bs[self.cU])
         mu = self.bn / (self.bs + 1e-10)
-        delta = delta_user
+        eps = self.eps_user
+        delta = self.delta_user
         if smin == 0:
             return eps
         assert np.log2(2 * len(self.cU) / delta) / 2 / smin > 0
@@ -159,25 +161,24 @@ class UnevenUCBActiveRank(ActiveRank):
 
 
 class TwoStageSeparateRank(UnevenUCBActiveRank):
-    def __init__(self, N, M, delta_rank, delta_user, s, gamma, active=False):
-        super().__init__(N, M, delta_rank, delta_user, s, gamma, active)
+    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
+        super().__init__(N, M, eps_user, delta_rank, delta_user, s, gamma, active)
         # rank the first pair of item
-        algo = UnevenUCBActiveRank(2, M, delta_rank, delta_user, s[:2], gamma, active=False)
+        algo = UnevenUCBActiveRank(2, M, eps_user, delta_rank, delta_user, s[:2], gamma, active=False)
         cost1, ranked = algo.rank()
         if ranked[0] != s[0]:
             self.gt_y = 1
         else:
             self.gt_y = 0
-        eps = 0.08
-        r = eps
-        while r >= eps:
+        r = self.eps_user
+        while r >= self.eps_user:
             u = self.cU[self.sample_user_idx()]
             y = self.model.sample_pair(u, 0, 1)
             self.bs[u] += 1
             if y == self.gt_y:
                 self.bn[u] += 1
             self.rank_sample_complexity += 1
-            r = self.eliminate_user(eps=eps)
+            r = self.eliminate_user()
         # cost_naive = 4 * np.log2(2 * self.M / delta_rank) / (eps ** 2) * self.M
         # print(f"naive {cost_naive * 64}, medium {cost2}")
         # self.rank_sample_complexity += cost_naive + cost1
