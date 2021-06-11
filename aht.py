@@ -51,22 +51,22 @@ class ActiveRank:
             assert (0 <= pair[0] <= self.cmp_sort.n_intree)
             assert (-1 <= pair[1] <= self.cmp_sort.n_intree)
             if pair[1] == -1:
-                self.cmp_sort.feedback(1)
+                inserted, inserted_place = self.cmp_sort.feedback(1)
             elif pair[1] == self.cmp_sort.n_intree:
-                self.cmp_sort.feedback(0)
+                inserted, inserted_place = self.cmp_sort.feedback(0)
             else:
-                pack_a = self.atc(pair[0], self.cmp_sort.arg_list[pair[1]], self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param,
-                                  self.cmp_sort.arg_list, self.s, self.gamma)
-                pack_b = self.cmp_sort.feedback(pack_a[0])
-                if self.active:
-                    self.post_atc(pack_a, pack_b)
+                pack_a = self.atc(pair[0], self.cmp_sort.arg_list[pair[1]],
+                                  self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param)
+                inserted, inserted_place =  self.cmp_sort.feedback(pack_a[0])
+            if self.active:
+                self.post_atc(inserted, inserted_place)
 
         return self.rank_sample_complexity, self.cmp_sort.arg_list
 
-    def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
+    def atc(self, i, j, eps, delta):
         pass
 
-    def post_atc(self, pack_a, pack_b):
+    def post_atc(self, inserted, inserted_place):
         pass
 
     # def init_user_counter(self):
@@ -90,8 +90,7 @@ class UnevenUCBActiveRank(ActiveRank):
     def create_mat(N, M):
         return np.zeros((N, M)), np.zeros((N, M))
 
-    def post_atc(self, pack_a, pack_b):
-        inserted, inserted_place = pack_b
+    def post_atc(self, inserted, inserted_place):
         if inserted:
             assert inserted_place != -1
             inserted_idx = len(self.cmp_sort.arg_list)
@@ -104,7 +103,7 @@ class UnevenUCBActiveRank(ActiveRank):
             self.A, self.B = self.create_mat(self.N, self.M)
             self.eliminate_user()
 
-    def atc(self, i, j, eps, delta, ranked_s, original_s, gamma):
+    def atc(self, i, j, eps, delta):
         t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log2(2 / delta)))
         p = 0.5
         w = 0
