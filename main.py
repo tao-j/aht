@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
                             if invoker == "sequential":
                                 print("seq started", fname)
-                                avg, std = run(algonum, repeat, 0.1, delta_rank, delta_user, n, m, gg, gb)
+                                avg, std = run(algonum, repeat, eps_user, delta_rank, delta_user, n, m, gg, gb)
                                 print(avg, std)
 
     if command == "plot":
