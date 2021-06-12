@@ -90,15 +90,22 @@ class UnevenUCBActiveRank(ActiveRank):
     def create_mat(N, M):
         return np.zeros((N, M)), np.zeros((N, M))
 
+    # def rank(self):
+    #     res = super(UnevenUCBActiveRank, self).rank()
+    #     assert self.rank_sample_complexity == sum(self.bs)
+    #     return res
+
     def post_atc(self, inserted, inserted_place):
         if inserted:
             assert inserted_place != -1
-            inserted_idx = len(self.cmp_sort.arg_list)
-            for j in range(inserted_idx):
-                if inserted_place > j:
+            arg_list = self.cmp_sort.arg_list
+            arg_list_len = len(arg_list)
+            for idx in range(arg_list_len):
+                j = arg_list[idx]
+                if inserted_place > idx:
                     self.bn += self.A[j]
-                elif inserted_place < j:
-                    self.bn += self.B[j - 1]
+                elif inserted_place < idx:
+                    self.bn += self.B[j]
             # assert (np.sum(self.A, axis=0) + np.sum(self.B, axis=0) + self.bn == self.bs).all()
             self.A, self.B = self.create_mat(self.N, self.M)
             self.eliminate_user()
@@ -125,7 +132,7 @@ class UnevenUCBActiveRank(ActiveRank):
             if p < 0.5 - b_t:
                 break
 
-        self.rank_sample_complexity += w
+        self.rank_sample_complexity += t
         atc_y = 1 if p > 0.5 else 0
         return atc_y, self.A, self.bs
 
@@ -154,6 +161,8 @@ class UnevenUCBActiveRank(ActiveRank):
                     new_cM.append(u)
             if new_cM == []:
                 assert False
+            # if set(self.cU) != set(new_cM):
+            #     print(self.cmp_sort.n_intree, to_remove)
             self.cU = new_cM
 
         return r
@@ -165,7 +174,7 @@ class TwoStageSeparateRank(UnevenUCBActiveRank):
         # rank the first pair of item
         algo = UnevenUCBActiveRank(2, M, eps_user, delta_rank, delta_user, s[:2], gamma, active=False)
         cost1, ranked = algo.rank()
-        if ranked[0] != s[0]:
+        if ranked[0] != 0:
             self.gt_y = 1
         else:
             self.gt_y = 0

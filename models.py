@@ -49,3 +49,7 @@ class Uniform(Model):
             si = 1
             sj = 4
         return 1. / (1 + np.exp(self.gamma[u] * (sj - si)))
+    # 2.5 0.99
+    # 1.0 0.9
+    # 0.5 0.81
+    # 0.25 0.6
