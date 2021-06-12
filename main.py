@@ -8,8 +8,8 @@ from sbatch import sbatch_template
 
 
 def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=9, gg=5.0, gb=0.5):
-    random.seed(123)
-    np.random.seed(123)
+    random.seed(128)
+    np.random.seed(129)
 
     # data gen method may be mentioned in Ren et al.
     thetas = []
@@ -49,14 +49,14 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
         a_sorted = sorted(s)
 
         assert (a_ms == a_sorted)
-        # print("selected users", algo.cU)
+        # print(rank_sample_complexity, "selected users", algo.cU)
     return int(np.average(tts)), int(np.std(tts))
 
 
 if __name__ == "__main__":
     repeat = 100
-    delta_rank = 0.3
-    delta_user = 0.1
+    delta_rank = 0.25
+    delta_user = 0.25
     eps_user = 0.05
     # for delta in np.arange(0.05, 1, 0.05):
     n_test_range = list(range(10, 101, 10))
@@ -65,8 +65,8 @@ if __name__ == "__main__":
     gb_range = [0.25, 0.5, 1.0]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
-    invoker = "sequential"
     invoker = "subprocess"
+    invoker = "sequential"
     invoker = "sbatch"
     outdir = f"r{repeat}"
     outdir = "output_plots"
@@ -150,7 +150,7 @@ if __name__ == "__main__":
                             y.append(avg)
                             stds.append(std)
                         markers = ['+', 'x', 'v', '.']
-                        ax = plt.errorbar(x, y, stds, linestyle='-', marker=markers[algonum])
+                        ax = plt.errorbar(x, y, stds, uplims=False, lolims=False, linestyle='-', marker=markers[algonum])
 
                     plt.legend(
                         ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"],
@@ -159,13 +159,14 @@ if __name__ == "__main__":
                     ax[0].axes.yaxis.set_major_formatter(fmt)
                     plt.xlabel("Number of items to rank")
                     plt.ylabel("Sample Complexity")
+                    plt.ylim(bottom=0, top=400000)
                     plt.title(f"$\gamma_A = {gb}, \gamma_B = {gg}$")
                     fig_name = f'output_plots/m{m}gb{gb}gg{gg}.pdf'
                     plt.savefig(fig_name)
                     print(fig_name)
                     plt.close()
 
-                    tex_subfigure_template = f'''\\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg}$]{{\\includegraphics[width=0.32\\textwidth]{{output_plots/m{m}gb{gb}gg{gg}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg}}}}}'''
+                    tex_subfigure_template = f'''\\subfigure[$\\gamma_A={gb}$, $\\gamma_B={gg}$]{{\\includegraphics[width=0.3\\textwidth]{{output_plots/m{m}gb{gb}gg{gg}.pdf}} \\label{{fig:m{m}gb{gb}gg{gg}}}}}'''
                     tex_subfigures.append(tex_subfigure_template)
             tex_subfigure_str = '\n'.join(tex_subfigures)
             tex_figs_template = f'''
