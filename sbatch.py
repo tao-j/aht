@@ -6,8 +6,8 @@ sbatch_template = '''#!/bin/bash
 ##SBATCH --mail-type=FAIL,REQUEUE,STAGE_OUT,TIME_LIMIT_50
 ##SBATCH --mail-user={email}
 
-##SBATCH -p intel
-#SBATCH -p standard
+#SBATCH -p main,gpu
+##SBATCH -p standard
 ##SBATCH --gres=gpu:1
 
 #SBATCH -t 49:59:59
