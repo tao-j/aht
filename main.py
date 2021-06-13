@@ -159,7 +159,7 @@ if __name__ == "__main__":
                     ax[0].axes.yaxis.set_major_formatter(fmt)
                     plt.xlabel("Number of items to rank")
                     plt.ylabel("Sample Complexity")
-                    plt.ylim(bottom=0, top=400000)
+                    plt.ylim(bottom=0, top=800000)
                     plt.title(f"$\gamma_A = {gb}, \gamma_B = {gg}$")
                     fig_name = f'output_plots/m{m}gb{gb}gg{gg}.pdf'
                     plt.savefig(fig_name)
