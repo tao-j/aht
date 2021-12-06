@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from pitsort import PITSort
-from models import HBTL, Uniform
+from models import HBTL, Uniform, UniformSpecified
 
 RAND_CACHE_SIZE = 100000
 
@@ -18,7 +18,9 @@ class ActiveRank:
         self.delta_user = delta_user
 
         self.cmp_sort = PITSort(N, delta_rank)
-        self.model = Uniform(s, gamma)
+        # self.model = Uniform(s, gamma)
+        self.model = UniformSpecified(s, gamma)
+        
         # self.model = HBTL(s, gamma)
 
         self.rank_sample_complexity = 0

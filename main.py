@@ -21,8 +21,18 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
 
     gamma = [gg] * (M // 3) + [gb] * (M // 3 * 2)
     gamma += [gb] * (M - len(gamma))
+    gamma = np.loadtxt("ev-acc200.txt").tolist()
+    M = len(gamma)
+    gs = np.sort(gamma)
+    gamma = gs[:int(M * 0.25)].tolist() + gs[-int(M * 0.25):].tolist()
+    # print(gamma)
+    s = np.arange(39)
+    s = np.arange(397)
+    N = len(s)
     # s = np.linspace(1 / n, 1, n)
-    s = np.log(thetas[:N])
+    # s = np.log(thetas[:N])
+    M = len(gamma)
+    print("M=", M)
     tts = []
 
     for _ in range(repeat):
@@ -48,26 +58,31 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
         a_ms = list(s[arg_list])
         a_sorted = sorted(s)
 
-        assert (a_ms == a_sorted)
+        # assert (a_ms == a_sorted)
+        # print(a_ms)
         # print(rank_sample_complexity, "selected users", algo.cU)
     return int(np.average(tts)), int(np.std(tts))
 
 
 if __name__ == "__main__":
-    repeat = 100
+    repeat = 1
     delta_rank = 0.25
     delta_user = 0.25
     eps_user = 0.05
     # for delta in np.arange(0.05, 1, 0.05):
-    n_test_range = list(range(10, 101, 10))
-    m_test_range = [9, 18, 36]
-    gg_range = [0.5, 1.0, 2.5]
-    gb_range = [0.25, 0.5, 1.0]
+    n_test_range = list(range(39, 40, 10))
+    # m_test_range = [18, 36, 72]
+    m_test_range = [50]
+
+    # gg_range = [0.5, 1.0, 2.5]
+    # gb_range = [0.25, 0.5, 1.0]
+    gg_range = [ 2.5 ]
+    gb_range = [ 0.5 ]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
     invoker = "subprocess"
-    invoker = "sequential"
     invoker = "sbatch"
+    invoker = "sequential"
     outdir = f"r{repeat}"
     outdir = "output_plots"
     if not os.path.isdir(outdir):

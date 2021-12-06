@@ -53,3 +53,14 @@ class Uniform(Model):
     # 1.0 0.9
     # 0.5 0.81
     # 0.25 0.6
+
+class UniformSpecified(Model):
+    def pij_func(self, u, i, j):
+        if self.s[i] > self.s[j]:
+            return self.gamma[u]
+        else:
+            return 1 - self.gamma[u]
+    # 2.5 0.99
+    # 1.0 0.9
+    # 0.5 0.81
+    # 0.25 0.6
