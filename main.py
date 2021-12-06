@@ -33,7 +33,7 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
 
         if algonum == 3:
             # oracle
-            algo = UnevenUCBActiveRank(N, 1, eps_user, delta_rank, delta_user, s, [max(gg, gb)], active=False)
+            algo = UnevenUCBActiveRank(N, 1, eps_user, delta_rank, delta_user, s, [max(gamma)], active=False)
         elif algonum == 2:
             # two stage
             algo = TwoStageSeparateRank(N, M, eps_user, delta_rank, delta_user, s, gamma)
@@ -121,6 +121,7 @@ if __name__ == "__main__":
                                 print("seq started", fname)
                                 avg, std = run(algonum, repeat, eps_user, delta_rank, delta_user, n, m, gg, gb)
                                 print(avg, std)
+                        print("----------------")
 
     if command == "plot":
         import matplotlib.pyplot as plt
@@ -153,7 +154,7 @@ if __name__ == "__main__":
                         ax = plt.errorbar(x, y, stds, uplims=False, lolims=False, linestyle='-', marker=markers[algonum])
 
                     plt.legend(
-                        ["Non-Adaptive User Sampling", "Adaptive User Sampling", "Two Stage Ranking", "Oracle"],
+                        ["IIR", "Ada-IIR", "Two-stage", "Oracle"],
                         loc="upper left")
                     fmt = plt.ScalarFormatter()
                     ax[0].axes.yaxis.set_major_formatter(fmt)
