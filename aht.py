@@ -118,8 +118,10 @@ class UnevenUCBActiveRank(ActiveRank):
         w = 0
         t = np.arange(1, t_max + 1)
         bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
+        perm = np.random.permutation(len(self.cU))
         for t in range(1, t_max + 1):
-            u = self.cU[self.sample_user_idx()]
+            # u = self.cU[self.sample_user_idx()]
+            u = perm[t - 1]
             self.bs[u] += 1
             y = self.model.sample_pair(u, i, j)
             if y == 1:
