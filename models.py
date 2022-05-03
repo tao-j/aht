@@ -4,26 +4,14 @@ RAND_CACHE_SIZE = 100000
 
 
 class Model:
-    def __init__(self, s, gamma):
-        self.s = s
-        self.gamma = gamma
-        self.N = len(s)
-        self.M = len(gamma)
-        self.Pij = 0.5 * np.ones([self.M, self.N, self.N])
-
+    def __init__(self):
         self.rand_cache = np.random.random(RAND_CACHE_SIZE)
         self.rand_i = 0
         self.rand_i_max = len(self.rand_cache)
 
-        for u in range(self.M):
-            for j in range(self.N):
-                for i in range(self.N):
-                    self.Pij[u, i, j] = self.pij_func(u, i, j)
+        self.Pij = None
 
-    def pij_func(self, u, i, j):
-        return 0.5
-
-    def sample_pair(self, u, i, j):
+    def sample_pair(self, i, j, u=1):
         if self.rand_cache[self.rand_i] < self.Pij[u, i, j]:
             y = 1
         else:
@@ -35,13 +23,34 @@ class Model:
         return y
 
 
-class HBTL(Model):
-    def pij_func(self, u, i, j):
+class SSTModel(Model):
+    def __init__(self, s, gamma=None):
+        super().__init__()
+
+        if gamma is None:
+            gamma = [1.0]
+        self.s = s
+        self.gamma = gamma
+        self.N = len(s)
+        self.M = len(gamma)
+        self.Pij = 0.5 * np.ones([self.M, self.N, self.N])
+
+        for u in range(self.M):
+            for j in range(self.N):
+                for i in range(self.N):
+                    self.Pij[u, i, j] = self.pij_func(i, j, u)
+
+    def pij_func(self, i, j, u=1):
+        return 0.5
+
+
+class HBTL(SSTModel):
+    def pij_func(self, i, j, u=1):
         return 1. / (1 + np.exp(self.gamma[u] * (self.s[j] - self.s[i])))
 
 
-class Uniform(Model):
-    def pij_func(self, u, i, j):
+class Uniform(SSTModel):
+    def pij_func(self, i, j, u=1):
         if self.s[i] > self.s[j]:
             si = 4
             sj = 1

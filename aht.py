@@ -119,7 +119,7 @@ class UnevenUCBActiveRank(ActiveRank):
         for t in range(1, t_max + 1):
             u = self.cU[self.sample_user_idx()]
             self.bs[u] += 1
-            y = self.model.sample_pair(u, i, j)
+            y = self.model.sample_pair(i, j, u)
             if y == 1:
                 self.A[j, u] += 1
                 w += 1
@@ -181,7 +181,7 @@ class TwoStageSeparateRank(UnevenUCBActiveRank):
         r = self.eps_user
         while r >= self.eps_user:
             u = self.cU[self.sample_user_idx()]
-            y = self.model.sample_pair(u, 0, 1)
+            y = self.model.sample_pair(0, 1, u)
             self.bs[u] += 1
             if y == self.gt_y:
                 self.bn[u] += 1
