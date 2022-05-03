@@ -1,4 +1,3 @@
-# %%
 import random
 import numpy as np
 from math import ceil, log2, sqrt, log
@@ -66,97 +65,105 @@ def findmaxmin(rank_slots, T):
     return L, U
 
 
-def test():
+class ProbeSort:
     # rank high to low
+    def __init__(self, N, delta):
+        self.N = N
+        self.delta = delta
 
-    # random.seed(222)
-    # np.random.seed(222)
+    def sort(self, a, model):
+        n = self.N
+        delta = self.delta
+        P = model.Pij
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        rank = np.ones(n) * -1
+        T = np.zeros((n, n))
+        Cc = np.zeros((n, n))
+        Cw = np.zeros((n, n))
+
+        for t in range(n // 2):
+            # print('t= =========================', t)
+            L, U = findmaxmin(rank, T)
+            # print(L, U)
+            if len(U) == 1:
+                imin = U.pop()
+            if len(L) == 1:
+                imax = L.pop()
+            while len(L) > 0 or len(U) > 0:
+                change = []
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        if T[i][j] == 0 and (i in L.union(U)
+                                             or j in L.union(U)):
+                            y = random.random() < P[i][j]  # ask about i and j once
+                            n_comp[i] += 1
+                            n_comp[j] += 1
+                            Cc[i, j] += 1
+                            Cw[i, j] += y
+                            if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j
+                                # print(i, '>', j)
+                                change.append([i, j])
+                            elif SE([Cc[i, j], Cw[i, j]],
+                                    2 * delta / n ** 2) == -1:  # means i<j
+                                # print(i, '<', j)
+                                change.append([j, i])
+                for i, j in change:
+                    # print(i, j)
+                    if i in U:
+                        U.remove(i)
+                    if j in L:
+                        L.remove(j)
+                    # print(L, U)
+                    trans_closure(T, [i, j])
+                    if len(U) == 1:
+                        imin = U.pop()
+                    if len(L) == 1:
+                        imax = L.pop()
+            rank[t] = imax
+            rank[n - 1 - t] = imin
+            # print(rank)
+        if n % 2 == 1:
+            rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
+
+        # %%
+        estnum = [0] * n
+        for i, x in enumerate(gt_rank):
+            if i == 0:
+                estnum[x] += 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
+            elif i == n - 1:
+                estnum[x] += 1 / (P[gt_rank[i - 1]][x] - 1 / 2) ** 2
+            else:
+                estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
+                                  1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
+        # print(n_comp)
+        # print(estnum)
+        self.sample_complexity = np.sum(n_comp)
+
+        # from matplotlib import pyplot as plt
+        #
+        # # fig, axs = plt.subplots(2)
+        # fig1 = plt.figure()
+        # plt.plot(estnum)
+        # fig2 = plt.figure()
+        # plt.plot(n_comp)
+
+        return rank
+
+
+if __name__ == "__main__":
+    random.seed(222)
+    np.random.seed(222)
     n = 10
+    delta = 0.1
+
     gt_rank = list(np.random.permutation(n))
 
-    wm = WSTModel(gt_rank)
-    P = wm.Pij
-
-    # start probe sorting
-    delta = 0.1
-    n_comp = np.zeros(n)  # number of comparisons asked involving each item
-    rank = np.ones(n) * -1
-    T = np.zeros((n, n))  # initialize the transitive closure
-    Cc = np.zeros((n, n))
-    Cw = np.zeros((n, n))
-
-    for t in range(n // 2):
-        # print('t= =========================', t)
-        L, U = findmaxmin(rank, T)
-        # print(L, U)
-        if len(U) == 1:
-            imin = U.pop()
-        if len(L) == 1:
-            imax = L.pop()
-        while len(L) > 0 or len(U) > 0:
-            change = []
-            for i in range(n):
-                for j in range(i + 1, n):
-                    if T[i][j] == 0 and (i in L.union(U)
-                                         or j in L.union(U)):
-                        y = random.random() < P[i][j]  # ask about i and j once
-                        n_comp[i] += 1
-                        n_comp[j] += 1
-                        Cc[i, j] += 1
-                        Cw[i, j] += y
-                        if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j
-                            # print(i, '>', j)
-                            change.append([i, j])
-                        elif SE([Cc[i, j], Cw[i, j]],
-                                2 * delta / n ** 2) == -1:  # means i<j
-                            # print(i, '<', j)
-                            change.append([j, i])
-            for i, j in change:
-                # print(i, j)
-                if i in U:
-                    U.remove(i)
-                if j in L:
-                    L.remove(j)
-                # print(L, U)
-                trans_closure(T, [i, j])
-                if len(U) == 1:
-                    imin = U.pop()
-                if len(L) == 1:
-                    imax = L.pop()
-        rank[t] = imax
-        rank[n - 1 - t] = imin
-        # print(rank)
-    if n % 2 == 1:
-        rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
+    prb_s = ProbeSort(n, delta)
+    model = WSTModel(gt_rank)
+    rank = prb_s.sort(None, model)
 
     # print('true ranking:', gt_rank)
     # print('output:', rank)
+
     assert (np.alltrue(rank == gt_rank))
-
-    # %%
-    estnum = [0] * n
-    for i, x in enumerate(gt_rank):
-        if i == 0:
-            estnum[x] += 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
-        elif i == n - 1:
-            estnum[x] += 1 / (P[gt_rank[i - 1]][x] - 1 / 2) ** 2
-        else:
-            estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
-                              1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
-    # print(n_comp)
-    # print(estnum)
-    print(np.sum(n_comp))
-
-    # from matplotlib import pyplot as plt
-    #
-    # # fig, axs = plt.subplots(2)
-    # fig1 = plt.figure()
-    # plt.plot(estnum)
-    # fig2 = plt.figure()
-    # plt.plot(n_comp)
-
-
-# %%
-if __name__ == "__main__":
-    for i in range(10):
-        test()
