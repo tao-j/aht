@@ -12,7 +12,13 @@ class Node:
         self.count = 0
 
 
-class PITSort:  # rank from low to high
+class PITSort:
+    """
+    ranks from low to high
+    param N: number of items to rank
+    
+    returns argsort style index
+    """
     def __init__(self, N, delta):
         self.N = N
         self.delta = delta
@@ -202,8 +208,8 @@ class PITSort:  # rank from low to high
         return inserted, inserted_place
 
 
-def cmp(i1, i2, ranked_a, original_a):
-    return 1 if original_a[i1] > ranked_a[i2] else 0
+def cmp(i1, i2, arglist, original_a):
+    return 1 if original_a[i1] > original_a[arglist[i2]] else 0
 
 
 if __name__ == "__main__":
@@ -212,16 +218,16 @@ if __name__ == "__main__":
 
     random.seed(222)
     for n in range(1, 30):
-        aa = []
+        rand_nums = []
         for i in range(n):
-            aa.append(random.randint(1, 100))
-        for a in itertools.permutations(aa):
+            rand_nums.append(random.randint(1, 100))
+        for a in itertools.permutations(rand_nums):
             a_sorted = sorted(a)
-            print(a_sorted)
-            cmp_sort = PITSort(a, 0.01)
+            # print("as: ", a_sorted)
+            cmp_sort = PITSort(len(a), 0.1)
             while not cmp_sort.done:
                 pair = cmp_sort.next_pair()
-                assert(0 <= pair[0] <= cmp_sort.n_intree)
+                assert (0 <= pair[0] <= cmp_sort.n_intree)
                 assert (-1 <= pair[1] <= cmp_sort.n_intree)
                 if pair[1] == -1:
                     cmp_sort.feedback(1)
@@ -230,7 +236,12 @@ if __name__ == "__main__":
                 else:
                     y = cmp(pair[0], pair[1], cmp_sort.arg_list, a)
                     cmp_sort.feedback(y)
-            a_ms = list(cmp_sort.arg_list)
-            print(a_ms)
-            assert (a_ms == a_sorted)
+                # print("ag: ", cmp_sort.arg_list)
+            a_ps = [0] * n
+            for idx, i in enumerate(cmp_sort.arg_list):
+                a_ps[idx] = a[i]
+            a_ps = list(np.array(a)[cmp_sort.arg_list])
+            # print("ps: ", cmp_sort.arg_list)
+            # print("aps:", a_ps)
+            assert (a_ps == a_sorted)
             break
