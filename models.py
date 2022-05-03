@@ -23,6 +23,15 @@ class Model:
         return y
 
 
+class DummyModel(Model):
+    def __init__(self, a):
+        self.original_a = a
+        return
+
+    def sample_pair(self, i, j, u=1):
+        return 1 if self.original_a[i] > self.original_a[j] else 0
+
+
 class WSTModel(Model):
     def __init__(self, rank):
         super(WSTModel, self).__init__()

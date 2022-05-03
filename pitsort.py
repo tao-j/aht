@@ -19,6 +19,7 @@ class PITSort:
     
     returns argsort style index
     """
+
     def __init__(self, N, delta):
         self.N = N
         self.delta = delta
@@ -135,7 +136,7 @@ class PITSort:
         return self.done
 
     # if y == 1 then request(a, b) returns a > b
-    def feedback(self, atc_y, total = 0):
+    def feedback(self, atc_y, total=0):
         inserted = False
         inserted_place = -1
 
@@ -207,14 +208,32 @@ class PITSort:
         self.next_state()
         return inserted, inserted_place
 
-
-def cmp(i1, i2, arglist, original_a):
-    return 1 if original_a[i1] > original_a[arglist[i2]] else 0
+    def sort(self, original_a, model):
+        while not self.done:
+            pair = self.next_pair()
+            assert (0 <= pair[0] <= self.n_intree)
+            assert (-1 <= pair[1] <= self.n_intree)
+            if pair[1] == -1:
+                self.feedback(1)
+            elif pair[1] == self.n_intree:
+                self.feedback(0)
+            else:
+                y = model.sample_pair(pair[0], self.arg_list[pair[1]])
+                self.feedback(y)
+            # print("ag: ", self.arg_list)
+        a_ps = [0] * n
+        for idx, i in enumerate(self.arg_list):
+            a_ps[idx] = original_a[i]
+        a_ps = list(np.array(original_a)[self.arg_list])
+        # print("ps: ", cmp_sort.arg_list)
+        # print("aps:", a_ps)
+        return a_ps
 
 
 if __name__ == "__main__":
     import random
     import itertools
+    from models import DummyModel
 
     random.seed(222)
     for n in range(1, 30):
@@ -224,24 +243,8 @@ if __name__ == "__main__":
         for a in itertools.permutations(rand_nums):
             a_sorted = sorted(a)
             # print("as: ", a_sorted)
-            cmp_sort = PITSort(len(a), 0.1)
-            while not cmp_sort.done:
-                pair = cmp_sort.next_pair()
-                assert (0 <= pair[0] <= cmp_sort.n_intree)
-                assert (-1 <= pair[1] <= cmp_sort.n_intree)
-                if pair[1] == -1:
-                    cmp_sort.feedback(1)
-                elif pair[1] == cmp_sort.n_intree:
-                    cmp_sort.feedback(0)
-                else:
-                    y = cmp(pair[0], pair[1], cmp_sort.arg_list, a)
-                    cmp_sort.feedback(y)
-                # print("ag: ", cmp_sort.arg_list)
-            a_ps = [0] * n
-            for idx, i in enumerate(cmp_sort.arg_list):
-                a_ps[idx] = a[i]
-            a_ps = list(np.array(a)[cmp_sort.arg_list])
-            # print("ps: ", cmp_sort.arg_list)
-            # print("aps:", a_ps)
+            pit_s = PITSort(len(a), 0.1)
+            model = DummyModel(a)
+            a_ps = pit_s.sort(a, model)
             assert (a_ps == a_sorted)
             break
