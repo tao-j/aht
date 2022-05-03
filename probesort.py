@@ -1,6 +1,8 @@
 # %%
 import random
+import numpy as np
 from math import ceil, log2, sqrt, log
+from models import WSTModel
 
 
 def twopower(x):
@@ -30,15 +32,6 @@ def trans_closure(T, e):
                         T[end][start] = -1
 
 
-def ran_permute(n):
-    # generate a random permutation of 0,1,...,n-1
-    nums = [x for x in range(n)]
-    for i in range(n - 1):
-        p = random.randint(i + 1, n - 1)
-        nums[i], nums[p] = nums[p], nums[i]
-    return nums
-
-
 def adjacent(p):
     # return an adjacency matrix A from permutation p where A[i][j] = 1 means i>j and A[i][j] = -1 means i<j
     n = len(p)
@@ -50,18 +43,6 @@ def adjacent(p):
             A[x][y] = 1
             A[y][x] = -1
     return A
-
-
-def comprob(nums):
-    # generate a random matrix P, where P[i][j] is the prob of i>j. Order according to nums
-    n = len(nums)
-    P = [[0] * n for i in range(n)]
-    for i, x in enumerate(nums):
-        for j in range(i + 1, n):
-            y = nums[j]
-            P[x][y] = random.uniform(0.5, 1)
-            P[y][x] = 1 - P[x][y]
-    return P
 
 
 def SE(Q, delta):
@@ -104,22 +85,25 @@ def findmaxmin(rank, T):
 
 # %%
 if __name__ == "__main__":
-    # randomly generate a permutation and the comparison probability
-    n = 50
-    sigma = ran_permute(n)
-    P = comprob(sigma)
+    # rank high to low
+
+    # random.seed(222)
+    # np.random.seed(222)
+    n = 9
+    gt_rank = list(np.random.permutation(n))
+
+    wm = WSTModel(gt_rank)
+    P = wm.Pij
 
     # start probe sorting
     delta = 0.1
-    numcom = [0] * n  # number of comparisons asked involving each item
-    rank = [-1] * n
-    T = [[0] * n for i in range(n)]  # initialize the transitive closure
+    n_comp = np.zeros(n)  # number of comparisons asked involving each item
+    rank = np.ones(n) * -1
+    T = np.zeros((n, n))  # initialize the transitive closure
     Q = {}  # initialize the queries Q
     for i in range(n):
         for j in range(i + 1, n):
             Q[tuple([i, j])] = [0, 0]
-
-    samples = 0
 
     for t in range(n // 2):
         print('t=', t)
@@ -136,12 +120,11 @@ if __name__ == "__main__":
                     if T[i][j] == 0 and i != j and (i in L.union(M)
                                                     or j in L.union(M)):
                         x = random.random() < P[i][j]  # ask about i and j once
-                        samples += 1
-                        numcom[i] += 1
-                        numcom[j] += 1
+                        n_comp[i] += 1
+                        n_comp[j] += 1
                         Q[tuple([i, j])][0] += 1
                         Q[tuple([i, j])][1] += x
-                        if SE(Q[tuple([i, j])], 2 * delta / n ** 2) == 1:  # means i>j
+                        if SE(Q[tuple([i, j])], 2 * delta / n / n) == 1:  # means i>j
                             print(i, '>', j)
                             change.append([i, j])
                         elif SE(Q[tuple([i, j])],
@@ -166,21 +149,21 @@ if __name__ == "__main__":
     if n % 2 == 1:
         rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
 
-    print('true ranking:', sigma)
+    print('true ranking:', gt_rank)
     print('output:', rank)
-    print('correct?', rank == sigma)
+    print('correct?', np.alltrue(rank == gt_rank))
 
     # %%
     estnum = [0] * n
-    for i, x in enumerate(sigma):
+    for i, x in enumerate(gt_rank):
         if i == 0:
-            estnum[x] += 1 / (P[x][sigma[i + 1]] - 1 / 2) ** 2
+            estnum[x] += 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
         elif i == n - 1:
-            estnum[x] += 1 / (P[sigma[i - 1]][x] - 1 / 2) ** 2
+            estnum[x] += 1 / (P[gt_rank[i - 1]][x] - 1 / 2) ** 2
         else:
-            estnum[x] += 1 / (P[sigma[i - 1]][x] -
-                              1 / 2) ** 2 + 1 / (P[x][sigma[i + 1]] - 1 / 2) ** 2
-    print(numcom)
+            estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
+                              1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
+    print(n_comp)
     print(estnum)
 
     from matplotlib import pyplot as plt
@@ -189,7 +172,6 @@ if __name__ == "__main__":
     fig1 = plt.figure()
     plt.plot(estnum)
     fig2 = plt.figure()
-    plt.plot(numcom)
-    print("samples", samples)
+    plt.plot(n_comp)
 
 # %%

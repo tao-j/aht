@@ -23,6 +23,20 @@ class Model:
         return y
 
 
+class WSTModel(Model):
+    def __init__(self, rank):
+        super(WSTModel, self).__init__()
+        slackness = 0.01
+        self.rank = rank
+        self.N = len(rank)
+        self.Pij = 0.5 * np.ones([self.N, self.N])
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                pij = np.random.random_sample() * (0.5 - slackness) + 0.5 + slackness
+                self.Pij[rank[i], rank[j]] = pij
+                self.Pij[rank[j], rank[i]] = 1 - pij
+
+
 class SSTModel(Model):
     def __init__(self, s, gamma=None):
         super().__init__()
