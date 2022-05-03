@@ -5,19 +5,14 @@ from math import ceil, log2, sqrt, log
 from models import WSTModel
 
 
-def twopower(x):
-    return 2 ** ceil(log2(x))
-
-
 def trans_closure(T, e):
     # update the transitive closure matrix T
-    # in T, T[i][j] = 1 <=> i>j, T[i][j] = -1 <=> i<j, T[i][j] = 0 <=> i>j or i<j not determined
+    # T[i][j] = 1 <=> i>j, T[i][j] = -1 <=> i<j
+    # T[i][j] = 0 <=> i>j or i<j not determined
     # e=[i,j], to update the relation i<j
     i, j = e
-    if T[i][j] == -1:
-        print('contradiction, opposite order')
-        return
-    elif T[i][j] == 0:
+    assert T[i][j] != -1, 'contradiction, opposite order'
+    if T[i][j] == 0:
         T[i][j] = 1
         T[j][i] = -1
         for end in range(len(T)):
@@ -30,19 +25,6 @@ def trans_closure(T, e):
                     if T[i][end] == 1:
                         T[start][end] = 1
                         T[end][start] = -1
-
-
-def adjacent(p):
-    # return an adjacency matrix A from permutation p where A[i][j] = 1 means i>j and A[i][j] = -1 means i<j
-    n = len(p)
-    A = [[0] * n for i in range(n)]
-    for i in range(n):
-        for j in range(i + 1, n):
-            x = p[i]
-            y = p[j]
-            A[x][y] = 1
-            A[y][x] = -1
-    return A
 
 
 def SE(Q, delta):
@@ -59,37 +41,37 @@ def SE(Q, delta):
     return 0
 
 
-def findmaxmin(rank, T):
+def findmaxmin(rank_slots, T):
     n = len(T)
     L = set()
-    M = set()
-    for a in range(n):
-        ifinL = 1
-        ifinM = 1
-        if a in rank:
-            ifinL = 0
-            ifinM = 0
+    U = set()
+    ranked_items = set(rank_slots)
+    for x in range(n):
+        in_L = 1
+        in_U = 1
+        if x in ranked_items:
+            in_L = 0
+            in_U = 0
         else:
-            for b in range(n):
-                if b not in rank:
-                    if T[a][b] == -1:
-                        ifinL = 0
-                    if T[a][b] == 1:
-                        ifinM = 0
-        if ifinL == 1:
-            L.add(a)
-        if ifinM == 1:
-            M.add(a)
-    return L, M
+            for y in range(n):
+                if y not in ranked_items:
+                    if T[x][y] == -1:
+                        in_L = 0
+                    if T[x][y] == 1:
+                        in_U = 0
+        if in_L:
+            L.add(x)
+        if in_U:
+            U.add(x)
+    return L, U
 
 
-# %%
-if __name__ == "__main__":
+def test():
     # rank high to low
 
     # random.seed(222)
     # np.random.seed(222)
-    n = 9
+    n = 10
     gt_rank = list(np.random.permutation(n))
 
     wm = WSTModel(gt_rank)
@@ -100,58 +82,56 @@ if __name__ == "__main__":
     n_comp = np.zeros(n)  # number of comparisons asked involving each item
     rank = np.ones(n) * -1
     T = np.zeros((n, n))  # initialize the transitive closure
-    Q = {}  # initialize the queries Q
-    for i in range(n):
-        for j in range(i + 1, n):
-            Q[tuple([i, j])] = [0, 0]
+    Cc = np.zeros((n, n))
+    Cw = np.zeros((n, n))
 
     for t in range(n // 2):
-        print('t=', t)
-        L, M = findmaxmin(rank, T)
-        print(L, M)
-        if len(M) == 1:
-            imin = M.pop()
+        # print('t= =========================', t)
+        L, U = findmaxmin(rank, T)
+        # print(L, U)
+        if len(U) == 1:
+            imin = U.pop()
         if len(L) == 1:
             imax = L.pop()
-        while len(L) > 0 or len(M) > 0:
+        while len(L) > 0 or len(U) > 0:
             change = []
             for i in range(n):
                 for j in range(i + 1, n):
-                    if T[i][j] == 0 and i != j and (i in L.union(M)
-                                                    or j in L.union(M)):
-                        x = random.random() < P[i][j]  # ask about i and j once
+                    if T[i][j] == 0 and (i in L.union(U)
+                                         or j in L.union(U)):
+                        y = random.random() < P[i][j]  # ask about i and j once
                         n_comp[i] += 1
                         n_comp[j] += 1
-                        Q[tuple([i, j])][0] += 1
-                        Q[tuple([i, j])][1] += x
-                        if SE(Q[tuple([i, j])], 2 * delta / n / n) == 1:  # means i>j
-                            print(i, '>', j)
+                        Cc[i, j] += 1
+                        Cw[i, j] += y
+                        if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j
+                            # print(i, '>', j)
                             change.append([i, j])
-                        elif SE(Q[tuple([i, j])],
+                        elif SE([Cc[i, j], Cw[i, j]],
                                 2 * delta / n ** 2) == -1:  # means i<j
-                            print(i, '<', j)
+                            # print(i, '<', j)
                             change.append([j, i])
             for i, j in change:
-                print(i, j)
-                if i in M:
-                    M.remove(i)
+                # print(i, j)
+                if i in U:
+                    U.remove(i)
                 if j in L:
                     L.remove(j)
-                print(L, M)
+                # print(L, U)
                 trans_closure(T, [i, j])
-                if len(M) == 1:
-                    imin = M.pop()
+                if len(U) == 1:
+                    imin = U.pop()
                 if len(L) == 1:
                     imax = L.pop()
         rank[t] = imax
         rank[n - 1 - t] = imin
-        print(rank)
+        # print(rank)
     if n % 2 == 1:
         rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
 
-    print('true ranking:', gt_rank)
-    print('output:', rank)
-    print('correct?', np.alltrue(rank == gt_rank))
+    # print('true ranking:', gt_rank)
+    # print('output:', rank)
+    assert (np.alltrue(rank == gt_rank))
 
     # %%
     estnum = [0] * n
@@ -163,15 +143,20 @@ if __name__ == "__main__":
         else:
             estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
                               1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
-    print(n_comp)
-    print(estnum)
+    # print(n_comp)
+    # print(estnum)
+    print(np.sum(n_comp))
 
-    from matplotlib import pyplot as plt
+    # from matplotlib import pyplot as plt
+    #
+    # # fig, axs = plt.subplots(2)
+    # fig1 = plt.figure()
+    # plt.plot(estnum)
+    # fig2 = plt.figure()
+    # plt.plot(n_comp)
 
-    # fig, axs = plt.subplots(2)
-    fig1 = plt.figure()
-    plt.plot(estnum)
-    fig2 = plt.figure()
-    plt.plot(n_comp)
 
 # %%
+if __name__ == "__main__":
+    for i in range(10):
+        test()
