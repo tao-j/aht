@@ -74,7 +74,7 @@ class ProbeSort:
     def sort(self, a, model):
         n = self.N
         delta = self.delta
-        P = model.Pij
+        P = model.Pij[0]
 
         n_comp = np.zeros(n)  # number of comparisons asked involving each item
         rank = np.ones(n) * -1
@@ -96,7 +96,7 @@ class ProbeSort:
                     for j in range(i + 1, n):
                         if T[i][j] == 0 and (i in L.union(U)
                                              or j in L.union(U)):
-                            y = random.random() < P[i][j]  # ask about i and j once
+                            y = model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
                             Cc[i, j] += 1
@@ -127,15 +127,15 @@ class ProbeSort:
             rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
 
         # %%
-        estnum = [0] * n
-        for i, x in enumerate(gt_rank):
-            if i == 0:
-                estnum[x] += 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
-            elif i == n - 1:
-                estnum[x] += 1 / (P[gt_rank[i - 1]][x] - 1 / 2) ** 2
-            else:
-                estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
-                                  1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
+        # estnum = [0] * n
+        # for i, x in enumerate(gt_rank):
+        #     if i == 0:
+        #         estnum[x] += 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
+        #     elif i == n - 1:
+        #         estnum[x] += 1 / (P[gt_rank[i - 1]][x] - 1 / 2) ** 2
+        #     else:
+        #         estnum[x] += 1 / (P[gt_rank[i - 1]][x] -
+        #                           1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
         # print(n_comp)
         # print(estnum)
         self.sample_complexity = np.sum(n_comp)

@@ -143,10 +143,12 @@ class PITSort:
         t = self.t_ati
         t_max = np.ceil(np.max([4 * self.h, 512 / 25 * np.log2(2 / self.delta_ati_param)]))
 
-        # state number means I have already reached number of ATC calls in this iteration
+        # state number equals the number of ATC calls minus 1 reached in this iteration
+        # X is root
         if self.state == 0:
             self.X = self.X.rchild if atc_y == 1 else self.X.lchild
             assert self.X is not None
+        # X is leaf
         elif self.state == 1:
             assert self.X.parent is not None
             self.prev_atc_y = atc_y
@@ -166,6 +168,7 @@ class PITSort:
             else:
                 self.X = self.X.parent
                 assert self.X is not None
+        # X is node
         elif self.state == 3:
             self.prev_atc_y = atc_y
             self.t_ati -= 1
@@ -208,22 +211,50 @@ class PITSort:
         self.next_state()
         return inserted, inserted_place
 
+    def atc(self, i, j, eps, delta, model):
+        t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log2(2 / delta)))
+        p = 0.5
+        w = 0
+        t = np.arange(1, t_max + 1)
+        bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
+        for t in range(1, t_max + 1):
+            y = model.sample_pair(i, j)
+            if y == 1:
+                w += 1
+            b_t = bb_t[t - 1]
+            p = w / t
+            if p > 0.5 + b_t:
+                break
+            if p < 0.5 - b_t:
+                break
+
+        self.sample_complexity += t
+        atc_y = 1 if p > 0.5 else 0
+        return atc_y
+
     def sort(self, original_a, model):
+        self.sample_complexity = 0
         while not self.done:
             pair = self.next_pair()
             assert (0 <= pair[0] <= self.n_intree)
             assert (-1 <= pair[1] <= self.n_intree)
             if pair[1] == -1:
-                self.feedback(1)
+                inserted, _ = self.feedback(1)
             elif pair[1] == self.n_intree:
-                self.feedback(0)
+                inserted, _ = self.feedback(0)
             else:
-                y = model.sample_pair(pair[0], self.arg_list[pair[1]])
-                self.feedback(y)
-            # print("ag: ", self.arg_list)
-        a_ps = [0] * n
-        for idx, i in enumerate(self.arg_list):
-            a_ps[idx] = original_a[i]
+                y = self.atc(pair[0], self.arg_list[pair[1]],
+                                  self.epsilon_atc_param, self.delta_atc_param, model)
+                inserted, inserted_place = self.feedback(y)
+                # y = model.sample_pair(pair[0], self.arg_list[pair[1]])
+                # inserted, _ = self.feedback(y)
+                if not inserted:
+                    i = pair[0]
+                    j = self.arg_list[pair[1]]
+                    # print(pair, y, model.Pij[0, i, j])
+            # if inserted:
+                # print("inserted idx:", pair[0], self.arg_list, "real:", np.array(original_a)[self.arg_list])
+        # print("ag: ", self.arg_list)
         a_ps = list(np.array(original_a)[self.arg_list])
         # print("ps: ", cmp_sort.arg_list)
         # print("aps:", a_ps)

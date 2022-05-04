@@ -11,7 +11,7 @@ class Model:
 
         self.Pij = None
 
-    def sample_pair(self, i, j, u=1):
+    def sample_pair(self, i, j, u=0):
         if self.rand_cache[self.rand_i] < self.Pij[u, i, j]:
             y = 1
         else:
@@ -28,22 +28,22 @@ class DummyModel(Model):
         self.original_a = a
         return
 
-    def sample_pair(self, i, j, u=1):
+    def sample_pair(self, i, j, u=0):
         return 1 if self.original_a[i] > self.original_a[j] else 0
 
 
 class WSTModel(Model):
-    def __init__(self, rank):
+    def __init__(self, rank, slackness=0.25):
         super(WSTModel, self).__init__()
-        slackness = 0.01
         self.rank = rank
         self.N = len(rank)
-        self.Pij = 0.5 * np.ones([self.N, self.N])
+        self.M = 1
+        self.Pij = 0.5 * np.ones([self.M, self.N, self.N])
         for i in range(self.N):
             for j in range(i + 1, self.N):
                 pij = np.random.random_sample() * (0.5 - slackness) + 0.5 + slackness
-                self.Pij[rank[i], rank[j]] = pij
-                self.Pij[rank[j], rank[i]] = 1 - pij
+                self.Pij[0, rank[i], rank[j]] = pij
+                self.Pij[0, rank[j], rank[i]] = 1 - pij
 
 
 class SSTModel(Model):
@@ -63,17 +63,17 @@ class SSTModel(Model):
                 for i in range(self.N):
                     self.Pij[u, i, j] = self.pij_func(i, j, u)
 
-    def pij_func(self, i, j, u=1):
+    def pij_func(self, i, j, u=0):
         return 0.5
 
 
 class HBTL(SSTModel):
-    def pij_func(self, i, j, u=1):
+    def pij_func(self, i, j, u=0):
         return 1. / (1 + np.exp(self.gamma[u] * (self.s[j] - self.s[i])))
 
 
 class Uniform(SSTModel):
-    def pij_func(self, i, j, u=1):
+    def pij_func(self, i, j, u=0):
         if self.s[i] > self.s[j]:
             si = 4
             sj = 1
