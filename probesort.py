@@ -1,3 +1,5 @@
+from sort import Sort
+
 import random
 import numpy as np
 from math import ceil, log2, sqrt, log
@@ -65,26 +67,28 @@ def findmaxmin(rank_slots, T):
     return L, U
 
 
-class ProbeSort:
+class ProbeSort(Sort):
     # rank high to low
-    def __init__(self, N, delta):
+    def __init__(self, N, delta, model):
         self.N = N
         self.delta = delta
+        self.model = model
 
-    def sort(self, a, model):
+        self.sample_complexity = 0
+
+    def arg_sort(self):
         n = self.N
         delta = self.delta
-        P = model.Pij[0]
 
         n_comp = np.zeros(n)  # number of comparisons asked involving each item
-        rank = np.ones(n) * -1
+        arg_list = np.ones(n) * -1
         T = np.zeros((n, n))
         Cc = np.zeros((n, n))
         Cw = np.zeros((n, n))
 
         for t in range(n // 2):
             # print('t= =========================', t)
-            L, U = findmaxmin(rank, T)
+            L, U = findmaxmin(arg_list, T)
             # print(L, U)
             if len(U) == 1:
                 imin = U.pop()
@@ -96,7 +100,7 @@ class ProbeSort:
                     for j in range(i + 1, n):
                         if T[i][j] == 0 and (i in L.union(U)
                                              or j in L.union(U)):
-                            y = model.sample_pair(i, j)
+                            y = self.model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
                             Cc[i, j] += 1
@@ -120,11 +124,11 @@ class ProbeSort:
                         imin = U.pop()
                     if len(L) == 1:
                         imax = L.pop()
-            rank[t] = imax
-            rank[n - 1 - t] = imin
-            # print(rank)
+            arg_list[t] = imax
+            arg_list[n - 1 - t] = imin
+            # print(arg_list)
         if n % 2 == 1:
-            rank[n // 2] = int(n * (n - 1) / 2 - sum(rank) - 1)
+            arg_list[n // 2] = int(n * (n - 1) / 2 - sum(arg_list) - 1)
 
         # %%
         # estnum = [0] * n
@@ -148,7 +152,7 @@ class ProbeSort:
         # fig2 = plt.figure()
         # plt.plot(n_comp)
 
-        return rank
+        return arg_list
 
 
 if __name__ == "__main__":
@@ -159,11 +163,11 @@ if __name__ == "__main__":
 
     gt_rank = list(np.random.permutation(n))
 
-    prb_s = ProbeSort(n, delta)
-    model = WSTModel(gt_rank)
-    rank = prb_s.sort(None, model)
+    wst_m = WSTModel(gt_rank)
+    prb_s = ProbeSort(n, delta, wst_m)
+    prb_a = prb_s.arg_sort()
 
     # print('true ranking:', gt_rank)
     # print('output:', rank)
 
-    assert (np.alltrue(rank == gt_rank))
+    assert (np.alltrue(prb_a == gt_rank))
