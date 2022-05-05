@@ -1,3 +1,5 @@
+from sort import Sort
+
 import numpy as np
 
 
@@ -7,12 +9,12 @@ class Node:
         self.left = None
         self.right = None
         self.mid = None
-        self.lchild = None
-        self.rchild = None
+        self.l_child = None
+        self.r_child = None
         self.count = 0
 
 
-class PITSort:
+class PITSort(Sort):
     """
     ranks from low to high
     param N: number of items to rank
@@ -20,9 +22,11 @@ class PITSort:
     returns argsort style index
     """
 
-    def __init__(self, N, delta):
-        self.N = N
+    def __init__(self, n, delta, model):
+        self.N = n
         self.delta = delta
+        self.model = model
+        super(PITSort, self).__init__()
 
         if self.N == 0:
             self.done = True
@@ -50,8 +54,8 @@ class PITSort:
         self.prev_atc_y = None
 
         # N >= 2
-        self.n_intree = 1
-        self.requested_pair = [None, None]
+        self.n_in_tree = 1
+        self.requested_pair = [-1, -1]
         self.state = None
         self.X = None
         self.leaves = []
@@ -59,18 +63,22 @@ class PITSort:
         self.next_state()
         self.debug_b = 1
 
+        root = Node()
+        self.root = root
+
+        self.sample_complexity = 0
+
     def rebuild_tree(self):
         root = Node()
         self.root = root
         self.X = root
         self.leaves = []
         root.left = -1
-        root.right = self.n_intree
+        root.right = self.n_in_tree
         mid = (root.left + root.right) // 2
         root.mid = mid
 
-        bq = []
-        bq.append(root)
+        bq = [root]
         # build the index/interval tree
         while len(bq):
             current = bq[0]
@@ -83,13 +91,13 @@ class PITSort:
                 ltemp.parent = current
                 ltemp.left = current.left
                 ltemp.right = mid
-                current.lchild = ltemp
+                current.l_child = ltemp
                 bq.append(ltemp)
 
                 rtemp.parent = current
                 rtemp.left = mid
                 rtemp.right = current.right
-                current.rchild = rtemp
+                current.r_child = rtemp
                 bq.append(rtemp)
             else:
                 self.leaves.append(current)
@@ -101,39 +109,36 @@ class PITSort:
         if self.state == 1:
             self.state = 2
             self.delta_atc_param = 1 - q2
-            self.requested_pair = self.n_intree, self.X.right
+            self.requested_pair = self.n_in_tree, self.X.right
         elif self.state == 3:
             self.state = 4
             self.delta_atc_param = 1 - q3
-            self.requested_pair = self.n_intree, self.X.right
+            self.requested_pair = self.n_in_tree, self.X.right
         elif self.state == 5:
             self.delta_atc_param = 1 - q3
-            self.requested_pair = self.n_intree, self.X.mid
+            self.requested_pair = self.n_in_tree, self.X.mid
         # root node
-        elif self.X.left == -1 and self.X.right == self.n_intree:
+        elif self.X.left == -1 and self.X.right == self.n_in_tree:
             self.state = 0
             self.delta_atc_param = 1 - q
-            self.requested_pair = self.n_intree, self.X.mid
+            self.requested_pair = self.n_in_tree, self.X.mid
         # leaf node
         elif self.X.right - self.X.left == 1:
             self.state = 1
             self.delta_atc_param = 1 - q2
-            self.requested_pair = self.n_intree, self.X.left
+            self.requested_pair = self.n_in_tree, self.X.left
         else:
             self.state = 3
             self.delta_atc_param = 1 - q3
-            self.requested_pair = self.n_intree, self.X.left
+            self.requested_pair = self.n_in_tree, self.X.left
 
         self.delta_ati_param = 6 * self.delta_iai_param / np.pi / np.pi / self.t_iai / self.t_iai
         self.epsilon_ati_param = np.power(2., -(self.t_iai + 1))
         self.epsilon_atc_param = self.epsilon_ati_param
-        self.h = np.ceil(1 + np.log2(1 + self.n_intree))
+        self.h = np.ceil(1 + np.log2(1 + self.n_in_tree))
 
     def next_pair(self):
         return self.requested_pair
-
-    def done(self):
-        return self.done
 
     # if y == 1 then request(a, b) returns a > b
     def feedback(self, atc_y, total=0):
@@ -146,7 +151,7 @@ class PITSort:
         # state number equals the number of ATC calls minus 1 reached in this iteration
         # X is root
         if self.state == 0:
-            self.X = self.X.rchild if atc_y == 1 else self.X.lchild
+            self.X = self.X.r_child if atc_y == 1 else self.X.l_child
             assert self.X is not None
         # X is leaf
         elif self.state == 1:
@@ -160,9 +165,9 @@ class PITSort:
                 b_t = 0.5 * t + np.sqrt(t / 2 * np.log2(np.pi * np.pi * t * t / 3 / self.delta_ati_param)) + 1
                 if self.X.count > b_t:
                     inserted = True
-                    self.arg_list.insert(self.X.right, self.n_intree)
+                    self.arg_list.insert(self.X.right, self.n_in_tree)
                     inserted_place = self.X.right
-                    self.n_intree += 1
+                    self.n_in_tree += 1
             elif self.X.count > 0:
                 self.X.count -= 1
             else:
@@ -180,7 +185,7 @@ class PITSort:
                 self.state = 5
                 self.t_ati -= 1
         elif self.state == 5:
-            self.X = self.X.rchild if atc_y == 1 else self.X.lchild
+            self.X = self.X.r_child if atc_y == 1 else self.X.l_child
             self.state = 6
             assert self.X is not None
 
@@ -190,8 +195,8 @@ class PITSort:
                     if node.count > 1 + 5 / 16 * t_max:
                         inserted = True
                         inserted_place = node.right
-                        self.arg_list.insert(node.right, self.n_intree)
-                        self.n_intree += 1
+                        self.arg_list.insert(node.right, self.n_in_tree)
+                        self.n_in_tree += 1
                         break
             if inserted:
                 self.t_iai = 1
@@ -211,14 +216,14 @@ class PITSort:
         self.next_state()
         return inserted, inserted_place
 
-    def atc(self, i, j, eps, delta, model):
+    def atc(self, i, j, eps, delta):
         t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log2(2 / delta)))
         p = 0.5
         w = 0
         t = np.arange(1, t_max + 1)
         bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
         for t in range(1, t_max + 1):
-            y = model.sample_pair(i, j)
+            y = self.request_pair(i, j)
             if y == 1:
                 w += 1
             b_t = bb_t[t - 1]
@@ -232,50 +237,51 @@ class PITSort:
         atc_y = 1 if p > 0.5 else 0
         return atc_y
 
-    def sort(self, original_a, model):
-        self.sample_complexity = 0
+    def post_atc(self, inserted, inserted_place):
+        pass
+
+    def request_pair(self, i, j):
+        y = self.model.sample_pair(i, j)
+        return y
+
+    def arg_sort(self):
         while not self.done:
             pair = self.next_pair()
-            assert (0 <= pair[0] <= self.n_intree)
-            assert (-1 <= pair[1] <= self.n_intree)
+            assert (0 <= pair[0] <= self.n_in_tree)
+            assert (-1 <= pair[1] <= self.n_in_tree)
             if pair[1] == -1:
                 inserted, _ = self.feedback(1)
-            elif pair[1] == self.n_intree:
+            elif pair[1] == self.n_in_tree:
                 inserted, _ = self.feedback(0)
             else:
                 y = self.atc(pair[0], self.arg_list[pair[1]],
-                                  self.epsilon_atc_param, self.delta_atc_param, model)
+                             self.epsilon_atc_param, self.delta_atc_param)
                 inserted, inserted_place = self.feedback(y)
                 # y = model.sample_pair(pair[0], self.arg_list[pair[1]])
                 # inserted, _ = self.feedback(y)
-                if not inserted:
-                    i = pair[0]
-                    j = self.arg_list[pair[1]]
-                    # print(pair, y, model.Pij[0, i, j])
+                # if not inserted:
+                #     i = pair[0]
+                #     j = self.arg_list[pair[1]]
+                #     print(pair, y, model.Pij[0, i, j])
+            self.post_atc()
             # if inserted:
-                # print("inserted idx:", pair[0], self.arg_list, "real:", np.array(original_a)[self.arg_list])
-        # print("ag: ", self.arg_list)
-        a_ps = list(np.array(original_a)[self.arg_list])
-        # print("ps: ", cmp_sort.arg_list)
-        # print("aps:", a_ps)
-        return a_ps
+            # print("inserted idx:", pair[0], self.arg_list, "real:", np.array(original_a)[self.arg_list])
+        return self.arg_list
 
 
 if __name__ == "__main__":
     import random
-    import itertools
     from models import DummyModel
 
     random.seed(222)
-    for n in range(1, 30):
-        rand_nums = []
-        for i in range(n):
-            rand_nums.append(random.randint(1, 100))
-        for a in itertools.permutations(rand_nums):
-            a_sorted = sorted(a)
-            # print("as: ", a_sorted)
-            pit_s = PITSort(len(a), 0.1)
-            model = DummyModel(a)
-            a_ps = pit_s.sort(a, model)
-            assert (a_ps == a_sorted)
-            break
+    for n in range(0, 16):
+        array_nums = np.arange(100, 100 + n)
+        for _ in range(min(n + 1, n * n + 1)):
+            array_original = np.random.permutation(array_nums)
+            a_sorted = list(np.argsort(array_original))
+            print("arg: ", a_sorted)
+            d_model = DummyModel(array_original)
+            pit_s = PITSort(len(array_original), 0.1, d_model)
+            pit_a = pit_s.arg_sort()
+            print("pit: ", pit_a)
+            assert (pit_a == a_sorted)
