@@ -9,37 +9,35 @@ import pandas as pd
 
 
 def test():
-    n = 20
+    n = 5
     delta = 0.1
 
-    init_rank = list(np.arange(n))
+    # gt_a = list(np.random.permutation(n))
+    # model = WSTModel(gt_a, slackness=0.01)
+    s = np.random.rand(n)
+    gamma = np.ones(1)
+    model = HBTL(s, gamma)
+    gt_a = list(np.argsort(s))
 
-    gt_rank = list(np.random.permutation(n))
-    model = WSTModel(gt_rank, slackness=0.01)
-    # s = np.random.rand(n)
-    # gamma = np.ones(1)
-    # model = HBTL(s, gamma)
-    # gt_rank = list(np.argsort(s))
+    pit_s = PITSort(n, delta, model)
+    prb_s = ProbeSort(n, delta, model)
 
-    pit_s = PITSort(n, delta)
-    prb_s = ProbeSort(n, delta)
+    print(gt_a, "gt")
 
-    print(gt_rank, "gt")
-    print(init_rank, "init")
-
-    rank1 = pit_s.sort(init_rank, model)
+    pit_a = pit_s.arg_sort()
     s1 = pit_s.sample_complexity
-    rank1.reverse()
-    print(rank1, s1)
+    print(pit_a, s1)
 
-    rank2 = prb_s.sort(None, model)
+    prb_a = prb_s.arg_sort()
     s2 = prb_s.sample_complexity
-    print(rank2, s2)
+    print(prb_a, s2)
 
+    assert gt_a == prb_a
+    assert gt_a == pit_a
     return [s1, s2]
 
 
-filename = "data/pbs2.txt"
+filename = "output/pbs2.txt"
 
 
 def run():

@@ -42,8 +42,8 @@ class WSTModel(Model):
         for i in range(self.N):
             for j in range(i + 1, self.N):
                 pij = np.random.random_sample() * (0.5 - slackness) + 0.5 + slackness
-                self.Pij[0, rank[i], rank[j]] = pij
-                self.Pij[0, rank[j], rank[i]] = 1 - pij
+                self.Pij[0, rank[i], rank[j]] = 1 - pij
+                self.Pij[0, rank[j], rank[i]] = pij
 
 
 class SSTModel(Model):
