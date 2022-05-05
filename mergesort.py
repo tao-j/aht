@@ -1,16 +1,21 @@
-class MergeSort:  # rank from high to low
+from sort import Sort
 
-    def __init__(self, nums):
-        self.nums = nums
-        self.temp = [0] * len(nums)
+
+class MergeSort(Sort):
+    def __init__(self, n):
+        super().__init__()
+        self.end = None
+        self.right = None
+        self.mid = None
+        self.left = None
+        self.nums = None
+        self.temp = [0] * n
         self.temp_i = 0
-        self.n = len(nums)
-        
-        # self.s = State(n)
-        
+        self.n = n
+
         self.sublist = 1
         self.dist = 2
-        
+
         self.update_state()
 
         if self.n <= 1:
@@ -37,7 +42,7 @@ class MergeSort:  # rank from high to low
                 self.temp[self.temp_i] = self.nums[self.right]
                 self.temp_i += 1
                 self.right += 1
-    
+
     def next_pair(self):
         if self.done:
             return [None, None]
@@ -48,14 +53,14 @@ class MergeSort:  # rank from high to low
         return self.done
 
     def feedback(self, y):
-        if y == 1:  # left > right
+        if y != 1:  # left < right
             self.temp[self.temp_i] = self.nums[self.left]
             self.left += 1
         else:
             self.temp[self.temp_i] = self.nums[self.right]
             self.right += 1
         self.temp_i += 1
-        
+
         # test if reaches boundary for sublist
         self.copy_right_leftover()
         self.copy_left_leftover()
@@ -75,29 +80,30 @@ class MergeSort:  # rank from high to low
                 self.update_state()
             # test if reaches boundary for this division
             self.copy_left_leftover()
-        return 
+        return
+
+    def sort(self, array_in):
+        self.nums = array_in
+        while not self.done:
+            pair = self.next_pair()
+            if pair[0] > pair[1]:
+                y = 1
+            else:
+                y = 0
+            self.feedback(y)
+        return self.nums
 
 
 if __name__ == "__main__":
     import random
     import itertools
-    random.seed(100)
-    for n in range(10):
-        aa = []
-        for i in range(n):
-            aa.append(random.random())
-        for a in itertools.permutations(aa):
-            # print(a)
-            a_sorted = sorted(a, reverse=True)
-            # print(a_sorted)
-            ms = MergeSort(a)
-            while not ms.done:
-                pair = ms.next_pair()
-                if pair[0] > pair[1]:
-                    y = 1
-                else:
-                    y = 0
-                ms.feedback(y)
-            a_ms = list(ms.nums)
-            # print(a_ms)
-            assert(a_ms == a_sorted)
+
+    random.seed(222)
+    for n in range(0, 8):
+        array_nums = list(range(100, 100 + n))
+        for original_array in itertools.permutations(array_nums):
+            mst = MergeSort(len(original_array))
+            est_rank = mst.sort(original_array)
+            a_mst = list(est_rank)
+            print(a_mst)
+            assert (a_mst == array_nums)

@@ -25,11 +25,11 @@ class Model:
 
 class DummyModel(Model):
     def __init__(self, a):
-        self.original_a = a
+        self.array_original = a
         return
 
     def sample_pair(self, i, j, u=0):
-        return 1 if self.original_a[i] > self.original_a[j] else 0
+        return 1 if self.array_original[i] > self.array_original[j] else 0
 
 
 class WSTModel(Model):
