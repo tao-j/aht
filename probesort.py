@@ -81,7 +81,7 @@ class ProbeSort(Sort):
         delta = self.delta
 
         n_comp = np.zeros(n)  # number of comparisons asked involving each item
-        arg_list = np.ones(n) * -1
+        arg_list = n * [-1]
         T = np.zeros((n, n))
         Cc = np.zeros((n, n))
         Cw = np.zeros((n, n))
@@ -152,7 +152,7 @@ class ProbeSort(Sort):
         # fig2 = plt.figure()
         # plt.plot(n_comp)
 
-        return arg_list
+        return list(reversed(arg_list))
 
 
 if __name__ == "__main__":
