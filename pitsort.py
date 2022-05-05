@@ -263,9 +263,9 @@ class PITSort(Sort):
                 #     i = pair[0]
                 #     j = self.arg_list[pair[1]]
                 #     print(pair, y, model.Pij[0, i, j])
-            self.post_atc()
+            self.post_atc(inserted, inserted_place)
             # if inserted:
-            # print("inserted idx:", pair[0], self.arg_list, "real:", np.array(original_a)[self.arg_list])
+            #     print("inserted idx:", pair[0], self.arg_list, "real:", np.array(self.model.s)[self.arg_list])
         return self.arg_list
 
 
