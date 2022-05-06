@@ -24,7 +24,7 @@ class PITSort(Sort):
 
     def __init__(self, n, delta, model):
         self.N = n
-        self.delta = delta
+        self.delta_rank = delta
         self.model = model
         super(PITSort, self).__init__()
 
@@ -44,7 +44,7 @@ class PITSort(Sort):
         self.t_iir = 1
         self.t_iai = 1
         self.t_ati = 1
-        self.delta_iai_param = self.delta / (self.N - 1)
+        self.delta_iai_param = self.delta_rank / (self.N - 1)
         self.delta_ati_param = None
         self.delta_atc_param = None
         self.epsilon_ati_param = None
@@ -224,6 +224,7 @@ class PITSort(Sort):
         bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
         for t in range(1, t_max + 1):
             y = self.request_pair(i, j)
+            assert y == 1 or y == 0
             if y == 1:
                 w += 1
             b_t = bb_t[t - 1]
@@ -250,9 +251,9 @@ class PITSort(Sort):
             assert (0 <= pair[0] <= self.n_in_tree)
             assert (-1 <= pair[1] <= self.n_in_tree)
             if pair[1] == -1:
-                inserted, _ = self.feedback(1)
+                inserted, inserted_place = self.feedback(1)
             elif pair[1] == self.n_in_tree:
-                inserted, _ = self.feedback(0)
+                inserted, inserted_place = self.feedback(0)
             else:
                 y = self.atc(pair[0], self.arg_list[pair[1]],
                              self.epsilon_atc_param, self.delta_atc_param)
