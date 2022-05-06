@@ -6,20 +6,14 @@ from models import HBTL, Uniform
 RAND_CACHE_SIZE = 100000
 
 
-class ActiveRank:
-    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
-        self.N = N
-        self.M = M
-        self.cU = np.array(range(0, M))
-        self.s = s
-        self.gamma = gamma
+class HeterogeneousPITSort(PITSort):
+    def __init__(self, n, m, eps_user, delta_rank, delta_user, model, active=True):
+        self.M = m
+        self.cU = np.array(range(0, m))
         self.eps_user = eps_user
         self.delta_rank = delta_rank
         self.delta_user = delta_user
-
-        self.cmp_sort = PITSort(N, delta_rank)
-        self.model = Uniform(s, gamma)
-        # self.model = HBTL(s, gamma)
+        super(HeterogeneousPITSort, self).__init__(n, delta_rank, model)
 
         self.rank_sample_complexity = 0
         self.active = active
@@ -30,6 +24,13 @@ class ActiveRank:
         self.rand_cache = np.zeros([self.M, RAND_CACHE_SIZE], dtype=np.int)
         for ui in range(0, self.M):
             self.rand_cache[ui] = np.random.randint(0, ui + 1, RAND_CACHE_SIZE)
+
+        # number of times user is asked
+        self.bs = np.zeros(m)
+        # number of times user is correct
+        self.bn = np.zeros(m)
+        # temp matrix list holding user response
+        self.A, self.B = self.create_mat(n, m)
 
     def sample_user_idx(self):
         self.mt = len(self.cU) - 1
@@ -42,63 +43,14 @@ class ActiveRank:
 
         return u
 
-    def eliminate_user(self):
-        pass
-
-    def rank(self):
-        while not self.cmp_sort.done:
-            pair = self.cmp_sort.next_pair()
-            assert (0 <= pair[0] <= self.cmp_sort.n_intree)
-            assert (-1 <= pair[1] <= self.cmp_sort.n_intree)
-            if pair[1] == -1:
-                inserted, inserted_place = self.cmp_sort.feedback(1)
-            elif pair[1] == self.cmp_sort.n_intree:
-                inserted, inserted_place = self.cmp_sort.feedback(0)
-            else:
-                pack_a = self.atc(pair[0], self.cmp_sort.arg_list[pair[1]],
-                                  self.cmp_sort.epsilon_atc_param, self.cmp_sort.delta_atc_param)
-                inserted, inserted_place =  self.cmp_sort.feedback(pack_a[0])
-            if self.active:
-                self.post_atc(inserted, inserted_place)
-
-        return self.rank_sample_complexity, self.cmp_sort.arg_list
-
-    def atc(self, i, j, eps, delta):
-        pass
-
-    def post_atc(self, inserted, inserted_place):
-        pass
-
-    # def init_user_counter(self):
-    #     raise NotImplementedError
-    #
-    # def update_user_counter(self):
-    #     raise NotImplementedError
-
-
-class UnevenUCBActiveRank(ActiveRank):
-    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
-        super().__init__(N, M, eps_user, delta_rank, delta_user, s, gamma, active)
-        # number of times user is asked
-        self.bs = np.zeros(M)
-        # number of times user is correct
-        self.bn = np.zeros(M)
-        # temp matrix list holding user response
-        self.A, self.B = self.create_mat(N, M)
-
     @staticmethod
     def create_mat(N, M):
         return np.zeros((N, M)), np.zeros((N, M))
 
-    # def rank(self):
-    #     res = super(UnevenUCBActiveRank, self).rank()
-    #     assert self.rank_sample_complexity == sum(self.bs)
-    #     return res
-
     def post_atc(self, inserted, inserted_place):
-        if inserted:
+        if inserted and self.active:
             assert inserted_place != -1
-            arg_list = self.cmp_sort.arg_list
+            arg_list = self.arg_list
             arg_list_len = len(arg_list)
             for idx in range(arg_list_len):
                 j = arg_list[idx]
@@ -110,31 +62,15 @@ class UnevenUCBActiveRank(ActiveRank):
             self.A, self.B = self.create_mat(self.N, self.M)
             self.eliminate_user()
 
-    def atc(self, i, j, eps, delta):
-        t_max = int(np.ceil(1. / 2 / (eps ** 2) * np.log2(2 / delta)))
-        p = 0.5
-        w = 0
-        t = np.arange(1, t_max + 1)
-        bb_t = np.sqrt(1. / 2 / t * np.log2(np.pi * np.pi * t * t / 3 / delta))
-        for t in range(1, t_max + 1):
-            u = self.cU[self.sample_user_idx()]
-            self.bs[u] += 1
-            y = self.model.sample_pair(i, j, u)
-            if y == 1:
-                self.A[j, u] += 1
-                w += 1
-            else:
-                self.B[j, u] += 1
-            b_t = bb_t[t - 1]
-            p = w / t
-            if p > 0.5 + b_t:
-                break
-            if p < 0.5 - b_t:
-                break
-
-        self.rank_sample_complexity += t
-        atc_y = 1 if p > 0.5 else 0
-        return atc_y, self.A, self.bs
+    def request_pair(self, i, j):
+        u = self.cU[self.sample_user_idx()]
+        self.bs[u] += 1
+        y = self.model.sample_pair(i, j, u)
+        if y == 1:
+            self.A[j, u] += 1
+        else:
+            self.B[j, u] += 1
+        return y
 
     def eliminate_user(self):
         smin = min(self.bs[self.cU])
@@ -168,12 +104,14 @@ class UnevenUCBActiveRank(ActiveRank):
         return r
 
 
-class TwoStageSeparateRank(UnevenUCBActiveRank):
-    def __init__(self, N, M, eps_user, delta_rank, delta_user, s, gamma, active=True):
-        super().__init__(N, M, eps_user, delta_rank, delta_user, s, gamma, active)
+class TwoStageSeparateRank(HeterogeneousPITSort):
+    def __init__(self, n, m, eps_user, delta_rank, delta_user, model, active=True):
+        super().__init__(n, m, eps_user, delta_rank, delta_user, model, active)
         # rank the first pair of item
-        algo = UnevenUCBActiveRank(2, M, eps_user, delta_rank, delta_user, s[:2], gamma, active=False)
-        cost1, ranked = algo.rank()
+        algo = HeterogeneousPITSort(2, m, eps_user, delta_rank, delta_user, model.__class__(model.s[:2], model.gamma),
+                                    active=False)
+        ranked = algo.arg_sort()
+        cost1 = algo.sample_complexity
         if ranked[0] != 0:
             self.gt_y = 1
         else:
@@ -194,7 +132,3 @@ class TwoStageSeparateRank(UnevenUCBActiveRank):
 
     def post_atc(self, pack_a, pack_b):
         pass
-
-    def rank(self):
-        cost, ranked = super().rank()
-        return cost, ranked

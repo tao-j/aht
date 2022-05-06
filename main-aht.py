@@ -1,4 +1,6 @@
-from aht import UnevenUCBActiveRank, TwoStageSeparateRank
+from hpitsort import HeterogeneousPITSort, TwoStageSeparateRank
+from models import Uniform, HBTL
+
 import random
 import numpy as np
 import os
@@ -29,27 +31,39 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
         s_idx = list(range(0, len(s)))
         random.shuffle(s_idx)
         s = s[s_idx]
-        # np.random.shuffle(s)
+        mdl_cls = Uniform
+        # mdl_cls = HBTL
 
+        algo = None
         if algonum == 3:
             # oracle
-            algo = UnevenUCBActiveRank(N, 1, eps_user, delta_rank, delta_user, s, [max(gamma)], active=False)
+            algo = HeterogeneousPITSort(N, 1, eps_user, delta_rank, delta_user,
+                                        mdl_cls(s, [max(gamma)]), active=False)
         elif algonum == 2:
             # two stage
-            algo = TwoStageSeparateRank(N, M, eps_user, delta_rank, delta_user, s, gamma)
+            algo = TwoStageSeparateRank(N, M, eps_user, delta_rank, delta_user,
+                                        mdl_cls(s, gamma))
         elif algonum == 1:
             # act
-            algo = UnevenUCBActiveRank(N, M, eps_user, delta_rank, delta_user, s, gamma, active=True)
+            algo = HeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
+                                        mdl_cls(s, gamma), active=True)
         elif algonum == 0:
             # non-act
-            algo = UnevenUCBActiveRank(N, M, eps_user, delta_rank, delta_user, s, gamma, active=False)
-        rank_sample_complexity, arg_list = algo.rank()
-        tts.append(rank_sample_complexity)
-        a_ms = list(s[arg_list])
-        a_sorted = sorted(s)
+            algo = HeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
+                                        mdl_cls(s, gamma), active=False)
 
-        assert (a_ms == a_sorted)
-        # print(rank_sample_complexity, "selected users", algo.cU)
+        if algo is not None:
+            pith_a = algo.arg_sort()
+            rank_sample_complexity, arg_list = algo.sample_complexity, algo.arg_list
+            tts.append(rank_sample_complexity)
+            a_sorted = list(np.argsort(s))
+            # print(pith_a)
+            # print(a_sorted)
+            assert pith_a == a_sorted
+            # print(rank_sample_complexity, "selected users", algo.cU)
+        else:
+            raise
+
     return int(np.average(tts)), int(np.std(tts))
 
 
@@ -151,7 +165,8 @@ if __name__ == "__main__":
                             y.append(avg)
                             stds.append(std)
                         markers = ['+', 'x', 'v', '.']
-                        ax = plt.errorbar(x, y, stds, uplims=False, lolims=False, linestyle='-', marker=markers[algonum])
+                        ax = plt.errorbar(x, y, stds, uplims=False, lolims=False, linestyle='-',
+                                          marker=markers[algonum])
 
                     plt.legend(
                         ["IIR", "Ada-IIR", "Two-stage", "Oracle"],
