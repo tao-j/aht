@@ -14,7 +14,7 @@ class Sort:
     def next_pair(self):
         raise NotImplementedError
 
-    def sort(self, array_in):
+    def sort(self, array_in) -> int:
         raise NotImplementedError
 
     def arg_sort(self):
