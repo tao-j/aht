@@ -10,7 +10,7 @@ def trans_closure(T, e):
     # update the transitive closure matrix T
     # T[i][j] = 1 <=> i>j, T[i][j] = -1 <=> i<j
     # T[i][j] = 0 <=> i>j or i<j not determined
-    # e=[i,j], to update the relation i<j
+    # e=[i,j], to update the relation i>j
     i, j = e
     assert T[i][j] != -1, 'contradiction, opposite order'
     if T[i][j] == 0:
@@ -34,7 +34,7 @@ def SE(Q, delta):
     phat = Q[1] / Q[0]
     if n > 1 and log2(n) == int(log2(n)):
         t = log2(n)
-        alpha_t = sqrt(log((3.14 ** 2 / 3) * (t ** 2) / delta) / (2 * n))
+        alpha_t = sqrt(log((np.pi ** 2 / 3) * (t ** 2) / delta) / (2 * n))
         if phat - 1 / 2 > alpha_t:
             return 1
         elif phat - 1 / 2 < -alpha_t:
@@ -44,31 +44,32 @@ def SE(Q, delta):
 
 def findmaxmin(rank_slots, T):
     n = len(T)
-    L = set()
     U = set()
+    L = set()
     ranked_items = set(rank_slots)
     for x in range(n):
-        in_L = 1
         in_U = 1
+        in_L = 1
         if x in ranked_items:
-            in_L = 0
             in_U = 0
+            in_L = 0
         else:
             for y in range(n):
                 if y not in ranked_items:
-                    if T[x][y] == -1:
-                        in_L = 0
-                    if T[x][y] == 1:
+                    if T[x][y] == -1:  # x < y
                         in_U = 0
-        if in_L:
-            L.add(x)
+                    if T[x][y] == 1:  # x > y
+                        in_L = 0
         if in_U:
             U.add(x)
-    return L, U
+        if in_L:
+            L.add(x)
+    # TODO: should only return 1 item, assert?
+    return U, L
 
 
 class ProbeSort(Sort):
-    # rank high to low
+    # rank low to high
     def __init__(self, N, delta, model):
         self.N = N
         self.delta = delta
@@ -88,18 +89,18 @@ class ProbeSort(Sort):
 
         for t in range(n // 2):
             # print('t= =========================', t)
-            L, U = findmaxmin(arg_list, T)
-            # print(L, U)
-            if len(U) == 1:
-                imin = U.pop()
+            U, L = findmaxmin(arg_list, T)
+            # print(U, L)
             if len(L) == 1:
-                imax = L.pop()
-            while len(L) > 0 or len(U) > 0:
+                imin = L.pop()
+            if len(U) == 1:
+                imax = U.pop()
+            while len(U) > 0 or len(L) > 0:
                 change = []
                 for i in range(n):
                     for j in range(i + 1, n):
-                        if T[i][j] == 0 and (i in L.union(U)
-                                             or j in L.union(U)):
+                        if T[i][j] == 0 and (i in U.union(L)
+                                             or j in U.union(L)):
                             y = self.model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
@@ -114,16 +115,16 @@ class ProbeSort(Sort):
                                 change.append([j, i])
                 for i, j in change:
                     # print(i, j)
-                    if i in U:
-                        U.remove(i)
-                    if j in L:
-                        L.remove(j)
-                    # print(L, U)
+                    if i in L:
+                        L.remove(i)
+                    if j in U:
+                        U.remove(j)
+                    # print(U, L)
                     trans_closure(T, [i, j])
-                    if len(U) == 1:
-                        imin = U.pop()
                     if len(L) == 1:
-                        imax = L.pop()
+                        imin = L.pop()
+                    if len(U) == 1:
+                        imax = U.pop()
             arg_list[t] = imax
             arg_list[n - 1 - t] = imin
             # print(arg_list)
@@ -155,11 +156,75 @@ class ProbeSort(Sort):
         return list(reversed(arg_list))
 
 
+class ProbeSortA(ProbeSort):
+    def SC(self, i, j, delta, tau):
+        w_i = 0
+        eps_tau = pow(2, -tau)
+        delta_tau = delta / np.pi / np.pi * 6 / tau / tau
+        b_tau = 2 / eps_tau / eps_tau * log(1. / delta_tau)
+        b_tau = int(ceil(b_tau))
+        for t in range(b_tau):
+            y = self.model.sample_pair(i, j)
+            w_i += y
+        phat = w_i / b_tau
+
+        ans = 0
+        if phat - 1 / 2 > 0.5 * eps_tau:
+            ans = 1
+        elif phat - 1 / 2 < -0.5 * eps_tau:
+            ans = -1
+        return ans, b_tau
+
+    def arg_sort(self):
+        n = self.N
+        delta = self.delta
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        arg_list = n * [-1]
+        T = np.zeros((n, n))
+        Tau = np.ones((n, n))
+
+        for t in range(n - 1):
+            print('t= =========================', t)
+            U, _ = findmaxmin(arg_list, T)
+            print(U)
+            if len(U) == 1:
+                imax = U.pop()
+            while len(U) > 0:
+                change = []
+                i, j = np.unravel_index(Tau.argmin(), Tau.shape)
+                tau_ij = Tau[i][j]
+                Tau[i][j] += 1
+                Tau[j][i] += 1
+                ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
+                n_comp[i] += cost
+                n_comp[j] += cost
+                if ans == 1:
+                    # print(i, '>', j)
+                    change.append([i, j])
+                elif ans == -1:
+                    # print(i, '<', j)
+                    change.append([j, i])
+                for i, j in change:
+                    # print(i, j)
+                    if j in U:
+                        U.remove(j)
+                    # print(U, L)
+                    trans_closure(T, [i, j])
+                    if len(U) == 1:
+                        imax = U.pop()
+            arg_list[t] = imax
+            # print(arg_list)
+        arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
+        self.sample_complexity = np.sum(n_comp)
+        return list(reversed(arg_list))
+
+
 if __name__ == "__main__":
     random.seed(222)
     np.random.seed(222)
     n = 10
-    delta = 0.1
+    delta = 0.01
 
     gt_rank = list(np.random.permutation(n))
 
@@ -167,7 +232,12 @@ if __name__ == "__main__":
     prb_s = ProbeSort(n, delta, wst_m)
     prb_a = prb_s.arg_sort()
 
-    # print('true ranking:', gt_rank)
-    # print('output:', rank)
+    prba_s = ProbeSortA(n, delta, wst_m)
+    prba_a = prba_s.arg_sort()
+
+    print('true ranking:', gt_rank)
+    print('output:', prb_a, prb_s.sample_complexity)
+    print('output:', prba_a, prba_s.sample_complexity)
 
     assert (np.alltrue(prb_a == gt_rank))
+    assert (np.alltrue(prba_a == gt_rank))
