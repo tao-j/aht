@@ -39,11 +39,24 @@ class WSTModel(Model):
         self.N = len(rank)
         self.M = 1
         self.Pij = 0.5 * np.ones([self.M, self.N, self.N])
+        assert slackness < 0.5
+        self.init_matrix(rank, slackness)
+
+    def init_matrix(self, rank, slackness):
         for i in range(self.N):
             for j in range(i + 1, self.N):
                 pij = np.random.random_sample() * (0.5 - slackness) + 0.5 + slackness
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
+
+
+class AdjacentOnlyModel(WSTModel):
+    def init_matrix(self, rank, slackness):
+        for i in range(self.N - 1):
+            j = i + 1
+            pij = 0.5 + slackness
+            self.Pij[0, rank[i], rank[j]] = 1 - pij
+            self.Pij[0, rank[j], rank[i]] = pij
 
 
 class SSTModel(Model):

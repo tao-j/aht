@@ -1,10 +1,9 @@
 from pitsort import PITSort
 from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
-from models import WSTModel, HBTL
+from models import WSTModel, HBTL, Uniform, AdjacentOnlyModel
 
 import numpy as np
 import random
-import plotly.express as px
 import pandas as pd
 
 
@@ -14,11 +13,18 @@ def test_classes(n, class_list, model):
     if model == "wst":
         gt_a = list(np.random.permutation(n))
         model = WSTModel(gt_a, slackness=0.25)
-
+    elif model == "adj":
+        gt_a = list(np.random.permutation(n))
+        model = AdjacentOnlyModel(gt_a, slackness=0.25)
     elif model == "hbtl":
         s = np.arange(1, n + 1)
         gamma = np.ones(1)
         model = HBTL(s, gamma)
+        gt_a = list(np.argsort(s))
+    elif model == "uni":
+        s = np.arange(1, n + 1)
+        gamma = np.ones(1)
+        model = Uniform(s, gamma)
         gt_a = list(np.argsort(s))
     else:
         raise NotImplementedError
@@ -64,7 +70,7 @@ def submit_sbatch(model_str, max_n, repeat):
         args = ["python3", "main-pbs.py", "run", fname, str(i), str(max_n), model_str]
         log_name = fname + ".log"
         kwargs = {
-            'job_name': "pbs{:03d}".format(i),
+            'job_name': "pbs{:03d}{}".format(i, model_str),
             'file_err': log_name,
             'file_out': log_name,
             'email': '',
@@ -84,8 +90,6 @@ def plot_mat(model_str, max_n, repeat):
     res = []
     col_names = None
     for i in range(repeat):
-        if i == 45:
-            continue
         fname = get_fname(model_str, i)
         df = pd.read_csv(fname + ".txt")
         if col_names is None:
@@ -95,8 +99,8 @@ def plot_mat(model_str, max_n, repeat):
 
     res_avg = np.average(res, axis=0).T
     res_std = np.std(res, axis=0).T
-    print("avg", res_avg)
-    print("std", res_std)
+    # print("avg", res_avg)
+    # print("std", res_std)
     x = np.arange(10, max_n + 1, 10)
     markers = ['*', 'v', 'x', 'v', 'x']
 
@@ -124,10 +128,9 @@ def plot_mat(model_str, max_n, repeat):
 if __name__ == "__main__":
     repeat = 100
     max_n = 100
-    model_strs = ["wst", "hbtl"]
+    model_strs = ["wst", "hbtl", "uni"]
 
     import sys
-
     if len(sys.argv) > 1:
         if sys.argv[1] == 'plot':
             for model_str in model_strs:
@@ -149,11 +152,13 @@ if __name__ == "__main__":
             run_classes(filename + ".txt", model_str, run_num=i, max_n=max_n)
 
     if len(sys.argv) == 1:
-        filename = "output/pbs-hbtl-cmp4.txt"
-        # run_classes(filename, 0)
+        model_str = 'adj'
+        filename = get_fname(model_str, 0) + "-s.txt"
+        run_classes(filename, model_str, run_num=10, max_n=100)
+
+        import plotly.express as px
         df = pd.read_csv(filename)
-        # df = pd.DataFrame()
         print(df.to_numpy())
-        # fig = px.histogram(df)
+        fig = px.histogram(df)
         fig = px.line(df)
-        # fig.show()
+        fig.show()
