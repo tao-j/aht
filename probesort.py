@@ -185,14 +185,19 @@ class ProbeSortA(ProbeSort):
         Tau = np.ones((n, n))
 
         for t in range(n - 1):
-            print('t= =========================', t)
+            # print('t= =========================', t)
             U, _ = findmaxmin(arg_list, T)
-            print(U)
+            # print(U)
             if len(U) == 1:
                 imax = U.pop()
             while len(U) > 0:
                 change = []
-                i, j = np.unravel_index(Tau.argmin(), Tau.shape)
+                Tau_now = np.array(Tau)
+                for i in range(n):
+                    if i not in U:
+                        Tau_now[i, :] = float("inf")
+                i, j = np.unravel_index(Tau_now.argmin(), Tau_now.shape)
+                assert i in U or j in U
                 tau_ij = Tau[i][j]
                 Tau[i][j] += 1
                 Tau[j][i] += 1
@@ -209,16 +214,132 @@ class ProbeSortA(ProbeSort):
                     # print(i, j)
                     if j in U:
                         U.remove(j)
-                    # print(U, L)
+                    # print(U, "in change")
                     trans_closure(T, [i, j])
                     if len(U) == 1:
                         imax = U.pop()
+            Tau[imax, :] = float("inf")
+            Tau[:, imax] = float("inf")
             arg_list[t] = imax
             # print(arg_list)
         arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
         self.sample_complexity = np.sum(n_comp)
         return list(reversed(arg_list))
 
+
+class ProbeSortB(ProbeSortA):
+    def arg_sort(self):
+        n = self.N
+        delta = self.delta
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        arg_list = n * [-1]
+        T = np.zeros((n, n))
+        Tau = np.ones((n, n))
+
+        for t in range(n // 2):
+            # print('t= =========================', t)
+            U, L = findmaxmin(arg_list, T)
+            # print(U)
+            if len(U) == 1:
+                imax = U.pop()
+            if len(L) == 1:
+                imin = L.pop()
+            while len(U) > 0 or len(L) > 0:
+                change = []
+                Tau_now = np.array(Tau)
+                for i in range(n):
+                    if i not in U and i not in L:
+                        Tau_now[i, :] = float("inf")
+                i, j = np.unravel_index(Tau_now.argmin(), Tau_now.shape)
+                assert i in U or j in U or i in L or j in L
+                tau_ij = Tau[i][j]
+                Tau[i][j] += 1
+                Tau[j][i] += 1
+                ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
+                n_comp[i] += cost
+                n_comp[j] += cost
+                if ans == 1:
+                    # print(i, '>', j)
+                    change.append([i, j])
+                elif ans == -1:
+                    # print(i, '<', j)
+                    change.append([j, i])
+                for i, j in change:
+                    # print(i, j)
+                    if i in L:
+                        L.remove(i)
+                    if j in U:
+                        U.remove(j)
+                    # print(U, "in change")
+                    trans_closure(T, [i, j])
+                    if len(L) == 1:
+                        imin = L.pop()
+                    if len(U) == 1:
+                        imax = U.pop()
+            Tau[imax, :] = float("inf")
+            Tau[:, imax] = float("inf")
+            Tau[imin, :] = float("inf")
+            Tau[:, imin] = float("inf")
+            arg_list[t] = imax
+            arg_list[n - 1 - t] = imin
+            # print(arg_list)
+        if n % 2 == 1:
+            arg_list[n // 2] = int(n * (n - 1) / 2 - sum(arg_list) - 1)
+
+        # print(arg_list)
+        self.sample_complexity = np.sum(n_comp)
+        return list(reversed(arg_list))
+
+class ProbeSortOB(ProbeSort):
+    def arg_sort(self):
+        n = self.N
+        delta = self.delta
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        arg_list = n * [-1]
+        T = np.zeros((n, n))
+        Cc = np.zeros((n, n))
+        Cw = np.zeros((n, n))
+
+        for t in range(n - 1):
+            print('t= =========================', t)
+            U, _ = findmaxmin(arg_list, T)
+            print(U, " ")
+            if len(U) == 1:
+                imax = U.pop()
+            while len(U) > 0:
+                change = []
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        if T[i][j] == 0 and (i in U):
+                            y = self.model.sample_pair(i, j)
+                            n_comp[i] += 1
+                            n_comp[j] += 1
+                            Cc[i, j] += 1
+                            Cw[i, j] += y
+                            if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j
+                                # print(i, '>', j)
+                                change.append([i, j])
+                            elif SE([Cc[i, j], Cw[i, j]],
+                                    2 * delta / n ** 2) == -1:  # means i<j
+                                # print(i, '<', j)
+                                change.append([j, i])
+                for i, j in change:
+                    # print(i, j)
+                    if j in U:
+                        U.remove(j)
+                    # print(U, L)
+                    trans_closure(T, [i, j])
+                    if len(U) == 1:
+                        imax = U.pop()
+            arg_list[t] = imax
+            # print(arg_list)
+            # arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
+
+        self.sample_complexity = np.sum(n_comp)
+
+        return list(reversed(arg_list))
 
 if __name__ == "__main__":
     random.seed(222)
@@ -235,9 +356,15 @@ if __name__ == "__main__":
     prba_s = ProbeSortA(n, delta, wst_m)
     prba_a = prba_s.arg_sort()
 
+    prbb_s = ProbeSortOB(n, delta, wst_m)
+    prbb_a = prbb_s.arg_sort()
+
+
     print('true ranking:', gt_rank)
-    print('output:', prb_a, prb_s.sample_complexity)
-    print('output:', prba_a, prba_s.sample_complexity)
+    print('output o:', prb_a, prb_s.sample_complexity)
+    print('output a:', prba_a, prba_s.sample_complexity)
+    print('output b:', prbb_a, prbb_s.sample_complexity)
 
     assert (np.alltrue(prb_a == gt_rank))
     assert (np.alltrue(prba_a == gt_rank))
+t
