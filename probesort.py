@@ -314,7 +314,7 @@ class ProbeSortUC(ProbeSortULC):
                 change = []
                 for i in range(n):
                     for j in range(i + 1, n):
-                        if T[i][j] == 0 and (i in U):
+                        if T[i][j] == 0 and (i in U or j in U):
                             y = self.model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
