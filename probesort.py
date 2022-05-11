@@ -183,7 +183,8 @@ class ProbeSortUT(ProbeSortULC):
         arg_list = n * [-1]
         T = np.zeros((n, n))
         Tau = np.ones((n, n))
-
+        for i in range(n):
+            Tau[i, i] = float("inf")
         for t in range(n - 1):
             # print('t= =========================', t)
             U, _ = findmaxmin(arg_list, T)
@@ -236,7 +237,8 @@ class ProbeSortULT(ProbeSortUT):
         arg_list = n * [-1]
         T = np.zeros((n, n))
         Tau = np.ones((n, n))
-
+        for i in range(n):
+            Tau[i, i] = float("inf")
         for t in range(n // 2):
             # print('t= =========================', t)
             U, L = findmaxmin(arg_list, T)
