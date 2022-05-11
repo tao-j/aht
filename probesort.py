@@ -68,7 +68,7 @@ def findmaxmin(rank_slots, T):
     return U, L
 
 
-class ProbeSort(Sort):
+class ProbeSortULC(Sort):
     # rank low to high
     def __init__(self, N, delta, model):
         self.N = N
@@ -156,7 +156,7 @@ class ProbeSort(Sort):
         return list(reversed(arg_list))
 
 
-class ProbeSortA(ProbeSort):
+class ProbeSortUT(ProbeSortULC):
     def SC(self, i, j, delta, tau):
         w_i = 0
         eps_tau = pow(2, -tau)
@@ -227,7 +227,7 @@ class ProbeSortA(ProbeSort):
         return list(reversed(arg_list))
 
 
-class ProbeSortB(ProbeSortA):
+class ProbeSortULT(ProbeSortUT):
     def arg_sort(self):
         n = self.N
         delta = self.delta
@@ -291,7 +291,7 @@ class ProbeSortB(ProbeSortA):
         self.sample_complexity = np.sum(n_comp)
         return list(reversed(arg_list))
 
-class ProbeSortOB(ProbeSort):
+class ProbeSortUC(ProbeSortULC):
     def arg_sort(self):
         n = self.N
         delta = self.delta
@@ -350,13 +350,13 @@ if __name__ == "__main__":
     gt_rank = list(np.random.permutation(n))
 
     wst_m = WSTModel(gt_rank)
-    prb_s = ProbeSort(n, delta, wst_m)
+    prb_s = ProbeSortULC(n, delta, wst_m)
     prb_a = prb_s.arg_sort()
 
-    prba_s = ProbeSortA(n, delta, wst_m)
+    prba_s = ProbeSortUT(n, delta, wst_m)
     prba_a = prba_s.arg_sort()
 
-    prbb_s = ProbeSortOB(n, delta, wst_m)
+    prbb_s = ProbeSortUC(n, delta, wst_m)
     prbb_a = prbb_s.arg_sort()
 
 
@@ -367,4 +367,3 @@ if __name__ == "__main__":
 
     assert (np.alltrue(prb_a == gt_rank))
     assert (np.alltrue(prba_a == gt_rank))
-t

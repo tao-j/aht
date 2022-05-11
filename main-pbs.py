@@ -1,5 +1,5 @@
 from pitsort import PITSort
-from probesort import ProbeSort, ProbeSortA
+from probesort import ProbeSortULC, ProbeSortUT
 from models import WSTModel, HBTL
 
 import numpy as np
@@ -21,8 +21,8 @@ def test(n):
     # gt_a = list(np.argsort(s))
 
     pit_s = PITSort(n, delta, model)
-    prbo_s = ProbeSort(n, delta, model)
-    prba_s = ProbeSortA(n, delta, model)
+    prbo_s = ProbeSortULC(n, delta, model)
+    prba_s = ProbeSortUT(n, delta, model)
 
     print(gt_a, "gt")
 
