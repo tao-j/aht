@@ -335,7 +335,7 @@ class ProbeSortUC(ProbeSortULC):
                         imax = U.pop()
             arg_list[t] = imax
             # print(arg_list)
-            # arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
+        arg_list[n - 1] = (set(range(n)) - (set(arg_list))).pop()
 
         self.sample_complexity = np.sum(n_comp)
 
