@@ -1,5 +1,5 @@
 from pitsort import PITSort
-from probesort import ProbeSortULC, ProbeSortUT
+from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
 from models import WSTModel, HBTL
 
 import numpy as np
@@ -8,60 +8,49 @@ import plotly.express as px
 import pandas as pd
 
 
-def test(n):
-    # n = 5
-    delta = 0.1
+def test_classes(n, class_list):
+    delta = 0.25
 
-    gt_a = list(np.random.permutation(n))
-    model = WSTModel(gt_a, slackness=0.25)
-    
-    # s = np.arange(1, n + 1)
-    # gamma = np.ones(1)
-    #model = HBTL(s, gamma)
-    # gt_a = list(np.argsort(s))
+    # gt_a = list(np.random.permutation(n))
+    # model = WSTModel(gt_a, slackness=0.25)
 
-    pit_s = PITSort(n, delta, model)
-    prbo_s = ProbeSortULC(n, delta, model)
-    prba_s = ProbeSortUT(n, delta, model)
+    s = np.arange(1, n + 1)
+    gamma = np.ones(1)
+    model = HBTL(s, gamma)
+    gt_a = list(np.argsort(s))
 
-    print(gt_a, "gt")
+    res = []
+    print("n:", n, gt_a)
+    for cls in class_list:
+        cls_s = cls(n, delta, model)
 
-    pit_a = pit_s.arg_sort()
-    s1 = pit_s.sample_complexity
-    print("pit_a ", s1)
+        cls_a = cls_s.arg_sort()
+        cls_n = cls_s.sample_complexity
+        print(cls.__name__, cls_n)
+        # print("rnk", cls_a)
 
-    prbo_a = prbo_s.arg_sort()
-    s2 = prbo_s.sample_complexity
-    print("prbo_a", s2)
+        assert gt_a == cls_a
+        res.append(str(cls_n))
 
-    prba_a = prba_s.arg_sort()
-    s3 = prba_s.sample_complexity
-    print("prba_a", s3)
-
-    assert gt_a == prbo_a
-    assert gt_a == prba_a
-    assert gt_a == pit_a
-    return [s1, s2, s3]
+    return res
 
 
-filename = "output/pbs-wst3.txt"
-
-
-def run():
+def run_classes(filename):
     random.seed(333)
     np.random.seed(333)
-    res = []
     fout = open(filename, 'w')
-    fout.write("pit,pbso,pbsa\n")
+    classes_to_test = [PITSort, ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT]
+    fout.write(",".join(map(lambda cls: cls.__name__, classes_to_test)) + "\n")
     for i in range(10, 100, 10):
-        s1, s2, s3 = test(i)
-        fout.write("{},{},{}\n".format(s1, s2, s3))
+        res = test_classes(i, classes_to_test)
+        fout.write("{}\n".format(",".join(res)))
         fout.flush()
     fout.close()
 
 
 if __name__ == "__main__":
-    run()
+    filename = "output/pbs-hbtl-cmp4.txt"
+    run_classes(filename)
     df = pd.read_csv(filename)
     # fig = px.histogram(df)
     fig = px.line(df)

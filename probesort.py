@@ -143,7 +143,7 @@ class ProbeSortULC(Sort):
         #                           1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
         # print(n_comp)
         # print(estnum)
-        self.sample_complexity = np.sum(n_comp)
+        self.sample_complexity = np.sum(n_comp)/2
 
         # from matplotlib import pyplot as plt
         #
@@ -223,7 +223,7 @@ class ProbeSortUT(ProbeSortULC):
             arg_list[t] = imax
             # print(arg_list)
         arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
-        self.sample_complexity = np.sum(n_comp)
+        self.sample_complexity = np.sum(n_comp)/2
         return list(reversed(arg_list))
 
 
@@ -288,7 +288,7 @@ class ProbeSortULT(ProbeSortUT):
             arg_list[n // 2] = int(n * (n - 1) / 2 - sum(arg_list) - 1)
 
         # print(arg_list)
-        self.sample_complexity = np.sum(n_comp)
+        self.sample_complexity = np.sum(n_comp)/2
         return list(reversed(arg_list))
 
 class ProbeSortUC(ProbeSortULC):
@@ -303,9 +303,9 @@ class ProbeSortUC(ProbeSortULC):
         Cw = np.zeros((n, n))
 
         for t in range(n - 1):
-            print('t= =========================', t)
+            # print('t= =========================', t)
             U, _ = findmaxmin(arg_list, T)
-            print(U, " ")
+            # print(U, " ")
             if len(U) == 1:
                 imax = U.pop()
             while len(U) > 0:
@@ -337,7 +337,7 @@ class ProbeSortUC(ProbeSortULC):
             # print(arg_list)
         arg_list[n - 1] = (set(range(n)) - (set(arg_list))).pop()
 
-        self.sample_complexity = np.sum(n_comp)
+        self.sample_complexity = np.sum(n_comp)/2
 
         return list(reversed(arg_list))
 
