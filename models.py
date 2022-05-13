@@ -59,6 +59,15 @@ class AdjacentOnlyModel(WSTModel):
             self.Pij[0, rank[j], rank[i]] = pij
 
 
+class FixedModel(WSTModel):
+    def init_matrix(self, rank, slackness):
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                pij = 0.5 + slackness
+                self.Pij[0, rank[i], rank[j]] = 1 - pij
+                self.Pij[0, rank[j], rank[i]] = pij
+
+
 class SSTModel(Model):
     def __init__(self, s, gamma=None):
         super().__init__()
