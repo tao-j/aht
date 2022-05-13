@@ -154,7 +154,7 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     }
     setting = model_str_to_setting[model_str]
     plt.title(f"Performance in \\verb+{setting}+ setting. $\Delta_d = {delta_d}$")
-    fig_name = f'output_plots-{delta_d}/{model_str}-n{max_n}x{repeat}.pdf'
+    fig_name = f'output_plots/{model_str}-n{max_n}x{repeat}-{delta_d}.pdf'
     plt.tight_layout()
     plt.savefig(fig_name)
 
@@ -195,13 +195,13 @@ if __name__ == "__main__":
                         model_str, run_num=i, max_n=max_n, delta_d=delta_d)
 
     if len(sys.argv) == 1:
-        model_str = 'hbtl'
-        filename = get_fname(model_str, 0) + "-s.txt"
-        run_classes(filename, model_str, run_num=10, max_n=100)
+        model_str = 'wst'
+        filename = get_fname(model_str, 0, delta_d=0.25) + "-s.txt"
+        run_classes(filename, model_str, run_num=10, max_n=10)
 
         import plotly.express as px
 
         df = pd.read_csv(filename)
         print(df.to_numpy())
         fig = px.line(df)
-        fig.show()
+        # fig.show()
