@@ -1,6 +1,6 @@
 from pitsort import PITSort
 from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
-from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel
+from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel
 
 import os
 import numpy as np
@@ -17,6 +17,9 @@ def test_classes(n, class_list, model, delta_d):
     elif model == "adj":
         gt_a = list(np.random.permutation(n))
         model = AdjacentOnlyModel(gt_a, delta_d=delta_d)
+    elif model == "ads":
+        gt_a = list(np.random.permutation(n))
+        model = AdjacentSqrtModel(gt_a, delta_d=delta_d)
     elif model == "sst":
         s = 2 * np.arange(1, n + 1) * np.sqrt(delta_d) * 100 / n
         # TODO: Uniform([0.9 ∗ 1.5^n−i , 1.1 ∗ 1.5^n−i ])
@@ -119,7 +122,6 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     import matplotlib.pyplot as plt
     plt.rcParams.update({'font.size': 23})
 
-    pitsort_idx = -1
     for i in range(len(col_names)):
         if res_avg[i].shape != x.shape:
             print(res_avg.shape, x.shape)
@@ -134,22 +136,23 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     }
     for i in range(len(col_names)):
         col_names[i] = col_names_mapping[col_names[i]]
-    # plt.legend(col_names, loc="lower right")
+    plt.legend(col_names, loc="lower right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
     plt.grid(True)
     plt.xlabel("Number of items to rank")
     plt.ylabel("Sample complexity")
-    plt.ylim(bottom=10**3, top=10**7)
+    # plt.ylim(bottom=10**3, top=10**7)
     model_str_to_setting = {
-        'sst': "   SST",
-        'wst': "   WST",
-        'adj': "   ADJ",
-        'wstadj': "WSTADJ",
+        'sst': "\\verb+   SST+",
+        'wst': "\\verb+   WST+",
+        'adj': "\\verb+  ADJ+$\gamma_1$",
+        'ads': "\\verb+  ADJ+$\gamma_2$",
+        'wstadj': "\\verb+WSTADJ+",
     }
     setting = model_str_to_setting[model_str]
-    plt.title(f"$\Delta_d = {delta_d}$ \\verb+{setting}+ model")
+    plt.title(f"$\Delta_d = {delta_d}$ {setting} model")
     fig_name = f'output_plots/{model_str}-n{max_n}x{repeat}-{delta_d}.pdf'
     plt.tight_layout()
     plt.savefig(fig_name)
@@ -163,9 +166,9 @@ def plot_mat(model_str, max_n, repeat, delta_d):
 if __name__ == "__main__":
     repeat = 100
     max_n = 100
-    model_strs = ["sst", "wst", "wstadj", "adj"]
+    model_strs = ["sst", "wst", "wstadj", "adj", "ads"]
     # model_strs = ["wstadj"]
-    # model_strs = ["adj"]
+    # model_strs = ["ads"]
 
     import sys
 
@@ -192,9 +195,9 @@ if __name__ == "__main__":
                         model_str, run_num=i, max_n=max_n, delta_d=delta_d)
 
     if len(sys.argv) == 1:
-        model_str = 'wst'
-        filename = get_fname(model_str, 0, delta_d=0.25) + "-s.txt"
-        run_classes(filename, model_str, run_num=10, max_n=10)
+        model_str = 'ads'
+        filename = get_fname(model_str, 0, delta_d=0.1) + "-s.txt"
+        run_classes(filename, model_str, run_num=10, max_n=100)
 
         import plotly.express as px
 

@@ -64,6 +64,20 @@ class AdjacentOnlyModel(WSTModel):
                 self.Pij[0, rank[j], rank[i]] = pij
 
 
+class AdjacentSqrtModel(WSTModel):
+    def init_matrix(self, rank, delta_d):
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                # adj 0.5+d/2
+                # non-adj 0.5+sqrt(1/n)
+                if j == i + 1:
+                    pij = 0.50 + delta_d
+                else:
+                    pij = 0.5 + np.sqrt(1 / self.N)
+                self.Pij[0, rank[i], rank[j]] = 1 - pij
+                self.Pij[0, rank[j], rank[i]] = pij
+
+
 class WSTAdjModel(WSTModel):
     def init_matrix(self, rank, delta_d):
         for i in range(self.N):
