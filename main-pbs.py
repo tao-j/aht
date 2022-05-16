@@ -1,6 +1,6 @@
 from pitsort import PITSort
 from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
-from models import WSTModel, HBTL, FixedModel, AdjacentOnlyModel
+from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel
 
 import os
 import numpy as np
@@ -13,20 +13,20 @@ def test_classes(n, class_list, model, delta_d):
 
     if model == "wst":
         gt_a = list(np.random.permutation(n))
-        model = WSTModel(gt_a, slackness=delta_d)
+        model = WSTModel(gt_a, delta_d=delta_d)
     elif model == "adj":
         gt_a = list(np.random.permutation(n))
-        model = AdjacentOnlyModel(gt_a, slackness=delta_d)
-    elif model == "hbtl":
-        s = np.arange(1, n + 1) * np.sqrt(delta_d) * 2
+        model = AdjacentOnlyModel(gt_a, delta_d=delta_d)
+    elif model == "sst":
+        s = 2 * np.arange(1, n + 1) * np.sqrt(delta_d) * 100 / n
         # TODO: Uniform([0.9 ∗ 1.5^n−i , 1.1 ∗ 1.5^n−i ])
         s = np.random.permutation(s)
         gamma = np.ones(1)
         model = HBTL(s, gamma)
         gt_a = list(np.argsort(s))
-    elif model == "fixed":
+    elif model == "wstadj":
         gt_a = list(np.random.permutation(n))
-        model = FixedModel(gt_a, slackness=delta_d)
+        model = WSTAdjModel(gt_a, delta_d=delta_d)
     else:
         raise NotImplementedError
 
@@ -35,12 +35,9 @@ def test_classes(n, class_list, model, delta_d):
     for cls in class_list:
         cls_s = cls(n, delta, model)
 
-        if cls == PITSort and model_str == "adj":
-            cls_n = 1400000
-        else:
-            cls_a = cls_s.arg_sort()
-            cls_n = cls_s.sample_complexity
-            assert gt_a == cls_a
+        cls_a = cls_s.arg_sort()
+        cls_n = cls_s.sample_complexity
+        assert gt_a == cls_a
 
         print(cls.__name__, cls_n)
         # print("rnk", cls_a)
@@ -54,7 +51,7 @@ def run_classes(filename, model_str, run_num=0, max_n=100, delta_d="0.25"):
     random.seed(333 + run_num)
     np.random.seed(333 + run_num)
     fout = open(filename, 'w')
-    classes_to_test = [PITSort, ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT]
+    classes_to_test = [PITSort, ProbeSortUC, ProbeSortUT]
     fout.write(",".join(map(lambda cls: cls.__name__, classes_to_test)) + "\n")
     for i in range(10, max_n + 1, 10):
         res = test_classes(i, classes_to_test, model_str, delta_d)
@@ -64,7 +61,7 @@ def run_classes(filename, model_str, run_num=0, max_n=100, delta_d="0.25"):
 
 
 def get_fname(model_str, i, delta_d):
-    return "output-{}/pbs-{}-cmp4-{:03d}".format(delta_d, model_str, i)
+    return "output/pbs-{}-cmp4-{:03d}-{}".format(model_str, i, delta_d)
 
 
 def submit_sbatch(model_str, max_n, repeat, delta_d):
@@ -96,7 +93,10 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     col_names = None
     for i in range(repeat):
         fname = get_fname(model_str, i, delta_d=delta_d)
-        df = pd.read_csv(fname + ".txt")
+        try:
+            df = pd.read_csv(fname + ".txt")
+        except:
+            print(fname, "bad ========================")
         if col_names is None:
             col_names = df.columns.values.tolist()
         res.append(df.to_numpy())
@@ -117,43 +117,39 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     import matplotlib
     matplotlib.rcParams['text.usetex'] = True
     import matplotlib.pyplot as plt
-    plt.rcParams.update({'font.size': 14})
+    plt.rcParams.update({'font.size': 23})
 
     pitsort_idx = -1
     for i in range(len(col_names)):
         if res_avg[i].shape != x.shape:
             print(res_avg.shape, x.shape)
             continue
-        if col_names[i] == PITSort.__name__ and model_str == "adj":
-            pitsort_idx = i
-            ax = plt.errorbar(x, res_avg[i], res_std[i],
-                              uplims=False, lolims=False, linestyle='None',
-                              marker='None')
-        else:
-            ax = plt.errorbar(x, res_avg[i], res_std[i],
-                              uplims=False, lolims=False, linestyle='-',
-                              marker=markers[i % 5])
-    if model_str == "adj":
-        plt.legend(col_names[:pitsort_idx] +
-                   [PITSort.__name__ + " (failed)"] +
-                   col_names[pitsort_idx + 1:], loc="lower right")
-    else:
-        plt.legend(col_names, loc="lower right")
+        ax = plt.errorbar(x, res_avg[i], res_std[i],
+                          uplims=False, lolims=False, linestyle='-',
+                          marker=markers[i % 5])
+    col_names_mapping = {
+        PITSort.__name__: "IIR",
+        ProbeSortUT.__name__: "ProbeSort",
+        ProbeSortUC.__name__: "ProbeSortOpt"
+    }
+    for i in range(len(col_names)):
+        col_names[i] = col_names_mapping[col_names[i]]
+    # plt.legend(col_names, loc="lower right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
     plt.grid(True)
     plt.xlabel("Number of items to rank")
     plt.ylabel("Sample complexity")
-    # plt.ylim(bottom=0, top=800000)
+    plt.ylim(bottom=10**3, top=10**7)
     model_str_to_setting = {
-        'hbtl': "SST",
-        'wst': "WST",
-        'adj': "AdjacentOnly",
-        'fixed': "Uniform",
+        'sst': "   SST",
+        'wst': "   WST",
+        'adj': "   ADJ",
+        'wstadj': "WSTADJ",
     }
     setting = model_str_to_setting[model_str]
-    plt.title(f"Performance in \\verb+{setting}+ setting. $\Delta_d = {delta_d}$")
+    plt.title(f"$\Delta_d = {delta_d}$ \\verb+{setting}+ model")
     fig_name = f'output_plots/{model_str}-n{max_n}x{repeat}-{delta_d}.pdf'
     plt.tight_layout()
     plt.savefig(fig_name)
@@ -167,20 +163,21 @@ def plot_mat(model_str, max_n, repeat, delta_d):
 if __name__ == "__main__":
     repeat = 100
     max_n = 100
-    model_strs = ["hbtl", "wst", "fixed", "adj"]
-    # model_strs = ["fixed"]
+    model_strs = ["sst", "wst", "wstadj", "adj"]
+    # model_strs = ["wstadj"]
+    # model_strs = ["adj"]
 
     import sys
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'plot':
-            for delta_d in ["0.25", "0.10"]:
+            for delta_d in ["0.40", "0.30", "0.20", "0.10"]:
                 for model_str in model_strs:
                     plot_mat(model_str, max_n, repeat, delta_d)
 
         if sys.argv[1] == 's':
             for model_str in model_strs:
-                for delta_d in ["0.25", "0.10"]:
+                for delta_d in ["0.40", "0.30", "0.20", "0.10"]:
                     submit_sbatch(model_str, max_n, repeat, delta_d)
             os.system(f"watch 'squeue -o \"%.18i %.9P %.18j %.8u %.2t %.10M %.6D %R\" | grep pbs'")
 

@@ -33,37 +33,48 @@ class DummyModel(Model):
 
 
 class WSTModel(Model):
-    def __init__(self, rank, slackness=0.25):
+    def __init__(self, rank, delta_d=0.25):
         super(WSTModel, self).__init__()
         self.rank = rank
         self.N = len(rank)
         self.M = 1
         self.Pij = 0.5 * np.ones([self.M, self.N, self.N])
-        assert slackness < 0.5
-        self.init_matrix(rank, slackness)
+        assert delta_d < 0.5
+        self.init_matrix(rank, delta_d)
 
-    def init_matrix(self, rank, slackness):
+    def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
-                pij = np.random.random_sample() * (0.5 - slackness) + 0.5 + slackness
+                pij = np.random.random_sample() * (0.5 - delta_d) + 0.5 + delta_d
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 
 
 class AdjacentOnlyModel(WSTModel):
-    def init_matrix(self, rank, slackness):
-        for i in range(self.N - 1):
-            j = i + 1
-            pij = 0.5 + slackness
-            self.Pij[0, rank[i], rank[j]] = 1 - pij
-            self.Pij[0, rank[j], rank[i]] = pij
-
-
-class FixedModel(WSTModel):
-    def init_matrix(self, rank, slackness):
+    def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
-                pij = 0.5 + slackness
+                # adj 0.5+d/2
+                # non-adj 0.5+sqrt(1/n)
+                if j == i + 1:
+                    pij = 0.50 + delta_d
+                else:
+                    pij = 0.5 + (1 / self.N)
+                self.Pij[0, rank[i], rank[j]] = 1 - pij
+                self.Pij[0, rank[j], rank[i]] = pij
+
+
+class WSTAdjModel(WSTModel):
+    def init_matrix(self, rank, delta_d):
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                # adj 0.5+d/10+d~1
+                # non adj 0.5+d/10~0.5+d/10+d
+                min_p = delta_d / 10 + 0.5
+                if j == i + 1:
+                    pij = np.random.random_sample() * (1 - min_p - delta_d) + min_p + delta_d
+                else:
+                    pij = np.random.random_sample() * delta_d + min_p
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 
@@ -86,7 +97,7 @@ class SSTModel(Model):
                     self.Pij[u, i, j] = self.pij_func(i, j, u)
 
     def pij_func(self, i, j, u=0):
-        return 0.5
+        raise NotImplementedError
 
 
 class HBTL(SSTModel):
