@@ -3,6 +3,10 @@ import numpy as np
 RAND_CACHE_SIZE = 100000
 
 
+def rnd_rng(a, b):
+    return np.random.random_sample() * (b - a) + a
+
+
 class Model:
     def __init__(self):
         self.rand_cache = np.random.random(RAND_CACHE_SIZE)
@@ -59,7 +63,21 @@ class AdjacentOnlyModel(WSTModel):
                 if j == i + 1:
                     pij = 0.50 + delta_d
                 else:
-                    pij = 0.5 + (1 / self.N)
+                    pij = 0.5 + delta_d * (1 / self.N)
+                self.Pij[0, rank[i], rank[j]] = 1 - pij
+                self.Pij[0, rank[j], rank[i]] = pij
+
+
+class AdjacentConstantModel(WSTModel):
+    def init_matrix(self, rank, delta_d):
+        for i in range(self.N):
+            for j in range(i + 1, self.N):
+                # adj 0.5+d/2
+                # non-adj 0.5+sqrt(1/n)
+                if j == i + 1:
+                    pij = 0.50 + 0.40
+                else:
+                    pij = 0.5 + delta_d
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 
@@ -73,7 +91,7 @@ class AdjacentSqrtModel(WSTModel):
                 if j == i + 1:
                     pij = 0.50 + delta_d
                 else:
-                    pij = 0.5 + np.sqrt(1 / self.N)
+                    pij = 0.5 + delta_d * np.sqrt(1 / self.N)
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 
@@ -82,13 +100,12 @@ class WSTAdjModel(WSTModel):
     def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
-                # adj 0.5+d/10+d~1
-                # non adj 0.5+d/10~0.5+d/10+d
-                min_p = delta_d / 10 + 0.5
+                pij_adj = rnd_rng(0.5 + delta_d, 1)
+                pij_njj = rnd_rng(0.5 + delta_d/10, 0.5 + delta_d)
                 if j == i + 1:
-                    pij = np.random.random_sample() * (1 - min_p - delta_d) + min_p + delta_d
+                    pij = pij_adj
                 else:
-                    pij = np.random.random_sample() * delta_d + min_p
+                    pij = pij_njj
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 

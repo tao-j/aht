@@ -1,11 +1,26 @@
 from pitsort import PITSort
 from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
-from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel
+from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel, AdjacentConstantModel
 
 import os
 import numpy as np
 import random
 import pandas as pd
+
+model_str_to_setting = {
+    'sst': "\\verb+   SST+",
+    'wst': "\\verb+   WST+",
+    'adj': "\\verb+  ADJ+$\gamma_1$",
+    'ads': "\\verb+  ADJ+$\gamma_2$",
+    'adc': "\\verb+ADJ CNST+",
+    'wstadj': "\\verb+WSTADJ+",
+}
+
+col_names_mapping = {
+    PITSort.__name__: "IIR",
+    ProbeSortUT.__name__: "Probe-Rank",
+    ProbeSortUC.__name__: "Probe-Rank-Opt"
+}
 
 
 def test_classes(n, class_list, model, delta_d):
@@ -20,8 +35,11 @@ def test_classes(n, class_list, model, delta_d):
     elif model == "ads":
         gt_a = list(np.random.permutation(n))
         model = AdjacentSqrtModel(gt_a, delta_d=delta_d)
+    elif model == "adc":
+        gt_a = list(np.random.permutation(n))
+        model = AdjacentConstantModel(gt_a, delta_d=delta_d)
     elif model == "sst":
-        s = 2 * np.arange(1, n + 1) * np.sqrt(delta_d) * 100 / n
+        s = np.arange(1, n + 1) * delta_d * 100 / n
         # TODO: Uniform([0.9 ∗ 1.5^n−i , 1.1 ∗ 1.5^n−i ])
         s = np.random.permutation(s)
         gamma = np.ones(1)
@@ -92,7 +110,7 @@ def submit_sbatch(model_str, max_n, repeat, delta_d):
         print(f"sbatch {sbatch_name} done")
 
 
-def plot_mat(model_str, max_n, repeat, delta_d):
+def plot_deltad(model_str, max_n, repeat, delta_d):
     res = []
     col_names = None
     for i in range(repeat):
@@ -104,9 +122,8 @@ def plot_mat(model_str, max_n, repeat, delta_d):
         if col_names is None:
             col_names = df.columns.values.tolist()
         res.append(df.to_numpy())
-        # TODO: adj sometime fails
         if res[-1].shape != res[0].shape:
-            print(i, res[-1].shape)
+            print(i, res[-1].shape, "rank failure")
             res.pop()
             continue
     res = np.array(res)
@@ -121,67 +138,154 @@ def plot_mat(model_str, max_n, repeat, delta_d):
     import matplotlib
     matplotlib.rcParams['text.usetex'] = True
     import matplotlib.pyplot as plt
-    plt.rcParams.update({'font.size': 23})
+    plt.rcParams.update({'font.size': 27})
 
     for i in range(len(col_names)):
         if res_avg[i].shape != x.shape:
             print(res_avg.shape, x.shape)
             continue
+        if i == 1:
+            continue
         ax = plt.errorbar(x, res_avg[i], res_std[i],
                           uplims=False, lolims=False, linestyle='-',
                           marker=markers[i % 5])
-    col_names_mapping = {
-        PITSort.__name__: "IIR",
-        ProbeSortUT.__name__: "ProbeSort",
-        ProbeSortUC.__name__: "ProbeSortOpt"
-    }
+    cc = []
     for i in range(len(col_names)):
-        col_names[i] = col_names_mapping[col_names[i]]
-    plt.legend(col_names, loc="lower right")
+        if i == 1:
+            continue
+        cc.append(col_names_mapping[col_names[i]])
+    # plt.legend(col_names, loc="lower right")
+    plt.legend(cc, prop={'size': 22})
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
     plt.grid(True)
     plt.xlabel("Number of items to rank")
     plt.ylabel("Sample complexity")
-    # plt.ylim(bottom=10**3, top=10**7)
-    model_str_to_setting = {
-        'sst': "\\verb+   SST+",
-        'wst': "\\verb+   WST+",
-        'adj': "\\verb+  ADJ+$\gamma_1$",
-        'ads': "\\verb+  ADJ+$\gamma_2$",
-        'wstadj': "\\verb+WSTADJ+",
-    }
+    # plt.ylim(bottom=10**0, top=10**10)
     setting = model_str_to_setting[model_str]
-    plt.title(f"$\Delta_d = {delta_d}$ {setting} model")
+    # plt.title(f"$\Delta_d = {delta_d}$ {setting} model")
     fig_name = f'output_plots/{model_str}-n{max_n}x{repeat}-{delta_d}.pdf'
     plt.tight_layout()
     plt.savefig(fig_name)
 
     print(fig_name)
     plt.close()
-    os.system(f"pdfcrop {fig_name} {fig_name}")
+    os.system(f"pdfcrop {fig_name} {fig_name} > /dev/null")
+    os.system(f"pdffonts {fig_name} | grep 'Type 3'")
+
+
+def plot_n(model_str, n, repeat, delta_ds):
+    res = []
+    col_names = None
+    for d_i, delta_d in enumerate(delta_ds):
+        des = []
+        for i in range(repeat):
+            fname = get_fname(model_str, i, delta_d=delta_d)
+            try:
+                df = pd.read_csv(fname + ".txt")
+            except:
+                pass
+                # print(fname, "bad ========================")
+            if col_names is None:
+                col_names = df.columns.values.tolist()
+            else:
+                assert col_names == df.columns.values.tolist()
+            # TODO: hacky here
+            try:
+                des.append(df.to_numpy()[n // 10 - 1].tolist())
+                if np.any(np.array(des[-1]) > 10**9):
+                    print(des[-1], delta_d)
+            except:
+                print("---- ---- failed one run", model_str, delta_d, i)
+                des.append(des[-1])
+        res.append(des)
+    res_avg = np.average(res, axis=1)
+    res_std = np.std(res, axis=1)
+    # print("avg", res_avg)
+    # print("std", res_std)
+    x = np.array(list(map(float, delta_ds)))
+
+    markers = ['*', 'v', 'x', 'v', 'x']
+
+    import matplotlib
+    matplotlib.rcParams['text.usetex'] = True
+    import matplotlib.pyplot as plt
+    plt.rcParams.update({'font.size': 27})
+
+    for i in range(len(col_names)):
+        if res_avg[:, i].shape != x.shape:
+            print(i, res_avg.shape, x.shape)
+            continue
+        if i == 1:
+            continue
+        ax = plt.errorbar(x, res_avg[:, i], res_std[:, i],
+                          uplims=False, lolims=False, linestyle='-',
+                          marker=markers[i % 5])
+    cc = []
+    for i in range(len(col_names)):
+        if i == 1:
+            continue
+        cc.append(col_names_mapping[col_names[i]])
+    # plt.legend(col_names, loc="lower right")
+    plt.legend(cc, prop={'size': 22})
+    fmt = plt.ScalarFormatter()
+    ax[0].axes.yaxis.set_major_formatter(fmt)
+    plt.yscale('log')
+    plt.grid(True)
+    plt.xlabel("$\Delta_d$")
+    plt.ylabel("Sample complexity")
+    # plt.ylim(bottom=10**0, top=10**10)
+
+    setting = model_str_to_setting[model_str]
+    # plt.title(f"$n = {n}$ {setting} model")
+    fig_name = f'output_plots/dd-{model_str}-n{n:03d}x{repeat}.pdf'
+    plt.tight_layout()
+    plt.savefig(fig_name)
+
+    print(fig_name)
+    plt.close()
+    os.system(f"pdfcrop {fig_name} {fig_name} > /dev/null")
     os.system(f"pdffonts {fig_name} | grep 'Type 3'")
 
 
 if __name__ == "__main__":
     repeat = 100
     max_n = 100
-    model_strs = ["sst", "wst", "wstadj", "adj", "ads"]
-    # model_strs = ["wstadj"]
+    # model_strs = ["sst", "wst", "wstadj", "adj", "ads", "adc"]
+    # model_strs = ["sst", "wst", "adj", "ads"]
+    # model_strs = ["wstadj", "adc"]
     # model_strs = ["ads"]
+    # model_strs = ["adc"]
+    model_strs = ["sst"]
 
     import sys
 
+    delta_ds = ["0.40", "0.30", "0.20", "0.10"]
+    # delta_ds = ["0.40", "0.35", "0.30", "0.25", "0.20", "0.15", "0.10", "0.05"]
+    # delta_ds = ["0.40", "0.35", "0.30", "0.25", "0.20", "0.15", "0.10", "0.05", "0.01"]
+    # delta_ds = ["0.01"]
     if len(sys.argv) > 1:
         if sys.argv[1] == 'plot':
-            for delta_d in ["0.40", "0.30", "0.20", "0.10"]:
+            os.system("grep -i error output/*")
+            os.system("grep -i assert output/*")
+            for n in [20, 40, 60, 80]:
                 for model_str in model_strs:
-                    plot_mat(model_str, max_n, repeat, delta_d)
+                    try:
+                        plot_n(model_str, n, repeat, delta_ds)
+                    except Exception as e:
+                        print(e)
+            # exit()
+            for delta_d in delta_ds:
+                for model_str in model_strs:
+                    try:
+                        plot_deltad(model_str, max_n, repeat, delta_d)
+                    except Exception as e:
+                        print(e)
 
         if sys.argv[1] == 's':
             for model_str in model_strs:
-                for delta_d in ["0.40", "0.30", "0.20", "0.10"]:
+                for delta_d in delta_ds:
                     submit_sbatch(model_str, max_n, repeat, delta_d)
             os.system(f"watch 'squeue -o \"%.18i %.9P %.18j %.8u %.2t %.10M %.6D %R\" | grep pbs'")
 
@@ -196,13 +300,16 @@ if __name__ == "__main__":
                         model_str, run_num=i, max_n=max_n, delta_d=delta_d)
 
     if len(sys.argv) == 1:
-        model_str = 'ads'
-        filename = get_fname(model_str, 0, delta_d=0.1) + "-s.txt"
-        run_classes(filename, model_str, run_num=10, max_n=100)
+        model_str = 'wst'
+        delta_d = "0.00"
+        filename = get_fname(model_str, 0, delta_d=delta_d) + "-s.txt"
+
+        # for i in range(100):
+        run_classes(filename, model_str, run_num=10, max_n=100, delta_d=delta_d)
 
         import plotly.express as px
 
         df = pd.read_csv(filename)
-        print(df.to_numpy())
-        fig = px.line(df)
+        # print(df.to_numpy())
+        # fig = px.line(df)
         # fig.show()
