@@ -1,7 +1,7 @@
 from sort import Sort
 
 import numpy as np
-
+LIMIT = 10**10
 
 class Node:
     def __init__(self):
@@ -67,6 +67,7 @@ class PITSort(Sort):
         self.root = root
 
         self.sample_complexity = 0
+        self.early_done = False
 
     def rebuild_tree(self):
         root = Node()
@@ -235,6 +236,9 @@ class PITSort(Sort):
                 break
 
         self.sample_complexity += t
+
+        if self.sample_complexity > LIMIT:
+            self.early_done = True
         atc_y = 1 if p > 0.5 else 0
         return atc_y
 
@@ -267,6 +271,8 @@ class PITSort(Sort):
             self.post_atc(inserted, inserted_place)
             # if inserted:
             #     print("inserted idx:", pair[0], self.arg_list, "real:", np.array(self.model.s)[self.arg_list])
+            if self.early_done:
+                return None
         return self.arg_list
 
 

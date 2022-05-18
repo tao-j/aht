@@ -5,6 +5,8 @@ import numpy as np
 from math import ceil, log2, sqrt, log
 from models import WSTModel
 
+#TODO:
+LIMIT = 10**10
 
 def trans_closure(T, e):
     # update the transitive closure matrix T
@@ -104,6 +106,9 @@ class ProbeSortULC(Sort):
                             y = self.model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
+                            self.sample_complexity += 1
+                            if self.sample_complexity > LIMIT:
+                                return None
                             Cc[i, j] += 1
                             Cw[i, j] += y
                             if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j
@@ -205,6 +210,9 @@ class ProbeSortUT(ProbeSortULC):
                 ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
                 n_comp[i] += cost
                 n_comp[j] += cost
+                self.sample_complexity += cost
+                if self.sample_complexity > LIMIT:
+                    return None
                 if ans == 1:
                     # print(i, '>', j)
                     change.append([i, j])
@@ -261,6 +269,9 @@ class ProbeSortULT(ProbeSortUT):
                 ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
                 n_comp[i] += cost
                 n_comp[j] += cost
+                self.sample_complexity += cost
+                if self.sample_complexity > LIMIT:
+                    return None
                 if ans == 1:
                     # print(i, '>', j)
                     change.append([i, j])
@@ -318,6 +329,9 @@ class ProbeSortUC(ProbeSortULC):
                             y = self.model.sample_pair(i, j)
                             n_comp[i] += 1
                             n_comp[j] += 1
+                            self.sample_complexity += 1
+                            if self.sample_complexity > LIMIT:
+                                return None
                             Cc[i, j] += 1
                             Cw[i, j] += y
                             if SE([Cc[i, j], Cw[i, j]], 2 * delta / n / n) == 1:  # means i>j

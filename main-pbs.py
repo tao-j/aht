@@ -40,7 +40,8 @@ def test_classes(n, class_list, model, delta_d):
 
         cls_a = cls_s.arg_sort()
         cls_n = cls_s.sample_complexity
-        assert gt_a == cls_a
+        if cls_a is not None:
+            assert gt_a == cls_a
 
         print(cls.__name__, cls_n)
         # print("rnk", cls_a)
