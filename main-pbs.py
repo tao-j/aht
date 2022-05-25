@@ -1,5 +1,5 @@
 from pitsort import PITSort
-from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
+from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortUTOld, ProbeSortUTOldWrong, ProbeSortULT
 from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel, AdjacentConstantModel
 
 import os
@@ -19,7 +19,9 @@ model_str_to_setting = {
 col_names_mapping = {
     PITSort.__name__: "IIR",
     ProbeSortUT.__name__: "Probe-Rank",
-    ProbeSortUC.__name__: "Probe-Rank-Opt"
+    ProbeSortUC.__name__: "Probe-Rank-SE",
+    ProbeSortUTOld.__name__: "Probe-Rank-Old",
+    ProbeSortUTOldWrong.__name__: "Probe-Rank-OldWrong",
 }
 
 
@@ -80,6 +82,7 @@ def run_classes(filename, model_str, run_num=0, max_n=100, delta_d="0.25"):
         fout.write("{}\n".format(",".join(res)))
         fout.flush()
     fout.close()
+    return res[1]
 
 
 def get_fname(model_str, i, delta_d):
@@ -144,17 +147,17 @@ def plot_deltad(model_str, max_n, repeat, delta_d):
         if res_avg[i].shape != x.shape:
             print(res_avg.shape, x.shape)
             continue
-        if i == 1:
-            continue
+        # if i == 1:
+        #     continue
         ax = plt.errorbar(x, res_avg[i], res_std[i],
                           uplims=False, lolims=False, linestyle='-',
                           marker=markers[i % 5])
     cc = []
     for i in range(len(col_names)):
-        if i == 1:
-            continue
+        # if i == 1:
+        #     continue
         cc.append(col_names_mapping[col_names[i]])
-    # plt.legend(col_names, loc="lower right")
+    plt.legend(col_names, loc="lower right")
     plt.legend(cc, prop={'size': 22})
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
@@ -194,7 +197,7 @@ def plot_n(model_str, n, repeat, delta_ds):
             # TODO: hacky here
             try:
                 des.append(df.to_numpy()[n // 10 - 1].tolist())
-                if np.any(np.array(des[-1]) > 10**9):
+                if np.any(np.array(des[-1]) > 10 ** 9):
                     print(des[-1], delta_d)
             except:
                 print("---- ---- failed one run", model_str, delta_d, i)
@@ -217,17 +220,17 @@ def plot_n(model_str, n, repeat, delta_ds):
         if res_avg[:, i].shape != x.shape:
             print(i, res_avg.shape, x.shape)
             continue
-        if i == 1:
-            continue
+        # if i == 1:
+        #     continue
         ax = plt.errorbar(x, res_avg[:, i], res_std[:, i],
                           uplims=False, lolims=False, linestyle='-',
                           marker=markers[i % 5])
     cc = []
     for i in range(len(col_names)):
-        if i == 1:
-            continue
+        # if i == 1:
+        #     continue
         cc.append(col_names_mapping[col_names[i]])
-    # plt.legend(col_names, loc="lower right")
+    plt.legend(col_names, loc="upper right")
     plt.legend(cc, prop={'size': 22})
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
@@ -252,19 +255,34 @@ def plot_n(model_str, n, repeat, delta_ds):
 if __name__ == "__main__":
     repeat = 100
     max_n = 100
-    # model_strs = ["sst", "wst", "wstadj", "adj", "ads", "adc"]
-    # model_strs = ["sst", "wst", "adj", "ads"]
+    name_map = {
+        "SST": "sst",
+        "WST": "wst",
+        "NON-SST": "wstadj",
+        "ADJ-ASYMa1": "adj",
+        "ADJ-ASYMa0.5": "ads",
+        "ADJ-CNST": "adc",
+    }
+
+    model_strs = ["sst", "wst", "wstadj", "adj", "ads", "adc"]
     # model_strs = ["wstadj", "adc"]
+    # model_strs = ["sst"]
+    # model_strs = ["wst"]
+    # model_strs = ["wstadj"]
+    # model_strs = ["adj"]
     # model_strs = ["ads"]
     # model_strs = ["adc"]
-    model_strs = ["sst"]
+    # model_strs = ["sst", "wst", "wstadj", "ads", "adc"]
 
     import sys
 
-    delta_ds = ["0.40", "0.30", "0.20", "0.10"]
     # delta_ds = ["0.40", "0.35", "0.30", "0.25", "0.20", "0.15", "0.10", "0.05"]
     # delta_ds = ["0.40", "0.35", "0.30", "0.25", "0.20", "0.15", "0.10", "0.05", "0.01"]
+    delta_ds = ["0.40", "0.30", "0.20", "0.10"]
+    # delta_ds = ["0.35", "0.25", "0.15", "0.05"]
+    # delta_ds = ["0.20"]
     # delta_ds = ["0.01"]
+    # delta_ds = ["0.30"]
     if len(sys.argv) > 1:
         if sys.argv[1] == 'plot':
             os.system("grep -i error output/*")
@@ -286,6 +304,8 @@ if __name__ == "__main__":
         if sys.argv[1] == 's':
             for model_str in model_strs:
                 for delta_d in delta_ds:
+                    if delta_d == "0.1" and model_str == "adj":
+                        continue
                     submit_sbatch(model_str, max_n, repeat, delta_d)
             os.system(f"watch 'squeue -o \"%.18i %.9P %.18j %.8u %.2t %.10M %.6D %R\" | grep pbs'")
 
@@ -301,15 +321,19 @@ if __name__ == "__main__":
 
     if len(sys.argv) == 1:
         model_str = 'wst'
-        delta_d = "0.00"
+        delta_d = "0.10"
         filename = get_fname(model_str, 0, delta_d=delta_d) + "-s.txt"
 
-        # for i in range(100):
-        run_classes(filename, model_str, run_num=10, max_n=100, delta_d=delta_d)
+        res = []
+        for i in range(10):
+            sap = run_classes(filename, model_str, run_num=i, max_n=31, delta_d=delta_d)
+            res.append(float(sap))
 
-        import plotly.express as px
+        print(np.mean(res))
+        print(np.std(res))
+        # import plotly.express as px
 
-        df = pd.read_csv(filename)
+        # df = pd.read_csv(filename)
         # print(df.to_numpy())
         # fig = px.line(df)
         # fig.show()
