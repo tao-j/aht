@@ -1,7 +1,7 @@
 from sort import Sort
 
 import numpy as np
-LIMIT = 10**10
+LIMIT = 10**9
 
 class Node:
     def __init__(self):

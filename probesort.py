@@ -5,8 +5,9 @@ import numpy as np
 from math import ceil, log2, sqrt, log
 from models import WSTModel
 
-#TODO:
-LIMIT = 10**10
+# TODO:
+LIMIT = 10 ** 9
+
 
 def trans_closure(T, e):
     # update the transitive closure matrix T
