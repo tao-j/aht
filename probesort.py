@@ -148,7 +148,7 @@ class ProbeSortULC(Sort):
         #                           1 / 2) ** 2 + 1 / (P[x][gt_rank[i + 1]] - 1 / 2) ** 2
         # print(n_comp)
         # print(estnum)
-        self.sample_complexity = np.sum(n_comp)/2
+        self.sample_complexity = np.sum(n_comp) / 2
 
         # from matplotlib import pyplot as plt
         #
@@ -161,7 +161,7 @@ class ProbeSortULC(Sort):
         return list(reversed(arg_list))
 
 
-class ProbeSortUT(ProbeSortULC):
+class ProbeSortUTOldWrong(ProbeSortULC):
     def SC(self, i, j, delta, tau):
         w_i = 0
         eps_tau = pow(2, -tau)
@@ -232,7 +232,191 @@ class ProbeSortUT(ProbeSortULC):
             arg_list[t] = imax
             # print(arg_list)
         arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
-        self.sample_complexity = np.sum(n_comp)/2
+        self.sample_complexity = np.sum(n_comp) / 2
+        return list(reversed(arg_list))
+
+class ProbeSortUTOld(ProbeSortULC):
+    def SC(self, i, j, delta, tau):
+        w_i = 0
+        eps_tau = pow(2, -tau)
+        delta_tau = delta / np.pi / np.pi * 6 / tau / tau
+        b_tau = 2 / eps_tau / eps_tau * log(1. / delta_tau)
+        b_tau = int(ceil(b_tau))
+        for t in range(b_tau):
+            y = self.model.sample_pair(i, j)
+            w_i += y
+        phat = w_i / b_tau
+
+        ans = 0
+        if phat - 1 / 2 > 0.5 * eps_tau:
+            ans = 1
+        elif phat - 1 / 2 < -0.5 * eps_tau:
+            ans = -1
+        return ans, b_tau
+
+    def arg_sort(self):
+        n = self.N
+        delta = self.delta
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        arg_list = n * [-1]
+        T = np.zeros((n, n))
+        Tau = np.ones((n, n))
+        for i in range(n):
+            Tau[i, i] = float("inf")
+        for t in range(n - 1):
+            # print('t= =========================', t)
+            U, _ = findmaxmin(arg_list, T)
+            # print(U)
+            if len(U) == 1:
+                imax = U.pop()
+            while len(U) > 0:
+                change = []
+                Tau_now = np.array(Tau)
+                for i in range(n):
+                    if i not in U:
+                        Tau_now[i, :] = float("inf")
+                min_val = float("inf")
+                sav = (None, None)
+                for i in range(n):
+                    for j in range(0, n):
+                        if T[i][j] == 0 and (i in U or j in U):
+                            val = Tau[i, j]
+                            if val < min_val:
+                                min_val = val
+                                sav = (i, j)
+                # i, j = np.unravel_index(Tau_now.argmin(), Tau_now.shape)
+                i, j = sav
+                assert i in U or j in U
+                tau_ij = Tau[i][j]
+                Tau[i][j] += 1
+                Tau[j][i] += 1
+                ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
+                n_comp[i] += cost
+                n_comp[j] += cost
+                self.sample_complexity += cost
+                if self.sample_complexity > LIMIT:
+                    return None
+                if ans == 1:
+                    # print(i, '>', j)
+                    change.append([i, j])
+                elif ans == -1:
+                    # print(i, '<', j)
+                    change.append([j, i])
+                for i, j in change:
+                    # print(i, j)
+                    if j in U:
+                        U.remove(j)
+                    # print(U, "in change")
+                    trans_closure(T, [i, j])
+                    if len(U) == 1:
+                        imax = U.pop()
+            Tau[imax, :] = float("inf")
+            Tau[:, imax] = float("inf")
+            arg_list[t] = imax
+            # print(arg_list)
+        arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
+        self.sample_complexity = np.sum(n_comp) / 2
+        return list(reversed(arg_list))
+
+
+def SC(i, j, delta, tau, P):
+    w = 0
+    eps = 2 ** (-tau)
+    c = 3.14 ** 2 / 6
+    dtau = delta / (c * tau ** 2)
+    b = ceil((2 / (eps ** 2)) * log(1 / dtau))
+    for t in range(b):
+        x = random.random() < P[0, i, j]  # ask about i and j once
+        w += x
+    phat = w / b
+    if phat - 1 / 2 > eps / 2:
+        return i, b
+    elif phat < 1 / 2 - eps / 2:
+        return j, b
+    else:
+        return 'unsure', b
+
+
+class ProbeSortUT(ProbeSortULC):
+    def SC(self, i, j, delta, tau):
+        w_i = 0
+        eps_tau = pow(2, -tau)
+        delta_tau = delta / np.pi / np.pi * 6 / tau / tau
+        b_tau = 2 / eps_tau / eps_tau * log(1. / delta_tau)
+        b_tau = int(ceil(b_tau))
+        for t in range(b_tau):
+            y = self.model.sample_pair(i, j)
+            w_i += y
+        phat = w_i / b_tau
+
+        ans = 0
+        if phat - 1 / 2 > 0.5 * eps_tau:
+            ans = 1
+        elif phat - 1 / 2 < -0.5 * eps_tau:
+            ans = -1
+        return ans, b_tau
+
+    def arg_sort(self):
+        n = self.N
+        delta = self.delta
+
+        n_comp = np.zeros(n)  # number of comparisons asked involving each item
+        arg_list = n * [-1]
+        T = np.zeros((n, n))
+        Tau = np.ones((n, n))
+        for i in range(n):
+            Tau[i, i] = float("inf")
+        for t in range(n - 1):
+            # print('t= =========================', t)
+            U, _ = findmaxmin(arg_list, T)
+            # print(U)
+            # if len(U) == 1:
+            #     imax = U.pop()
+            while len(U) > 1:
+                change = []
+                argmins = []
+                Tau_min = float("inf")
+
+                for i in range(n):
+                    for j in range(i + 1, n):
+                        if T[i][j] == 0 and (i in U or j in U):
+                            if Tau[i][j] < Tau_min:
+                                Tau_min = Tau[i][j]
+                                argmins = [[i, j]]
+                            elif Tau[i][j] == Tau_min:
+                                argmins.append([i, j])
+                # print(argmins)
+
+                for argmin in argmins:
+                    i, j = argmin
+                    tau_ij = Tau[i][j]
+                    Tau[i][j] += 1
+                    Tau[j][i] += 1
+                    ans, cost = self.SC(i, j, 2 * delta / n / n, tau_ij)
+
+                    self.sample_complexity += cost
+
+                    if ans == 1:
+                        # print(i, '>', j)
+                        change.append([i, j])
+                    elif ans == -1:
+                        # print(i, '<', j)
+                        change.append([j, i])
+
+                for i, j in change:
+                    if j in U and len(U) > 1:
+                        U.remove(j)
+                    trans_closure(T, [i, j])
+                # print(U)
+            imax = U.pop()
+            for j in range(n):
+                Tau[imax][j] = float("inf")
+                Tau[j][imax] = float("inf")
+            arg_list[t] = imax
+            # print(arg_list)
+        arg_list[n - 1] = findmaxmin(arg_list, T)[0].pop()
+        # self.sample_complexity = np.sum(n_comp) / 2
         return list(reversed(arg_list))
 
 
@@ -301,8 +485,9 @@ class ProbeSortULT(ProbeSortUT):
             arg_list[n // 2] = int(n * (n - 1) / 2 - sum(arg_list) - 1)
 
         # print(arg_list)
-        self.sample_complexity = np.sum(n_comp)/2
+        self.sample_complexity = np.sum(n_comp) / 2
         return list(reversed(arg_list))
+
 
 class ProbeSortUC(ProbeSortULC):
     def arg_sort(self):
@@ -353,9 +538,10 @@ class ProbeSortUC(ProbeSortULC):
             # print(arg_list)
         arg_list[n - 1] = (set(range(n)) - (set(arg_list))).pop()
 
-        self.sample_complexity = np.sum(n_comp)/2
+        self.sample_complexity = np.sum(n_comp) / 2
 
         return list(reversed(arg_list))
+
 
 if __name__ == "__main__":
     random.seed(222)
@@ -374,7 +560,6 @@ if __name__ == "__main__":
 
     prbb_s = ProbeSortUC(n, delta, wst_m)
     prbb_a = prbb_s.arg_sort()
-
 
     print('true ranking:', gt_rank)
     print('output o:', prb_a, prb_s.sample_complexity)
