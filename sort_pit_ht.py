@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from pitsort import PITSort
+from sort_pit import PITSort
 from models import HBTL, Uniform
 
 RAND_CACHE_SIZE = 100000
