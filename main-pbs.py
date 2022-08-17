@@ -1,5 +1,5 @@
-from pitsort import PITSort
-from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortUTOld, ProbeSortUTOldWrong, ProbeSortULT
+from sort_pit import PITSort
+from sort_probe import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
 from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel, AdjacentConstantModel
 
 import os
@@ -20,8 +20,6 @@ col_names_mapping = {
     PITSort.__name__: "IIR",
     ProbeSortUT.__name__: "Probe-Rank",
     ProbeSortUC.__name__: "Probe-Rank-SE",
-    ProbeSortUTOld.__name__: "Probe-Rank-Old",
-    ProbeSortUTOldWrong.__name__: "Probe-Rank-OldWrong",
 }
 
 
