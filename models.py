@@ -101,7 +101,7 @@ class WSTAdjModel(WSTModel):
         for i in range(self.N):
             for j in range(i + 1, self.N):
                 pij_adj = rnd_rng(0.5 + delta_d, 1)
-                pij_njj = rnd_rng(0.5 + delta_d/10, 0.5 + delta_d)
+                pij_njj = rnd_rng(0.5 + delta_d / 10, 0.5 + delta_d)
                 if j == i + 1:
                     pij = pij_adj
                 else:
@@ -149,3 +149,26 @@ class Uniform(SSTModel):
     # 1.0 0.9
     # 0.5 0.81
     # 0.25 0.6
+
+
+class Scaling:
+    def scale_by_gamma(self):
+        gamma = self.gamma
+        self.Pij = (self.Pij - 0.5) * gamma[:, np.newaxis, np.newaxis] + 0.5
+        assert np.all(self.Pij <= 1)
+        assert np.all(self.Pij >= 0)
+
+
+class SSTScale(HBTL, Scaling):
+    def __init__(self, s, gamma=np.ones(1)):
+        gamma = np.array(gamma)
+        super().__init__(s, np.ones(gamma.shape))
+        self.gamma = gamma
+        self.scale_by_gamma()
+
+
+class WSTScale(WSTModel, Scaling):
+    def __init__(self, rank, delta_d=0.25, gamma=np.ones(1)):
+        super().__init__(rank, delta_d=delta_d)
+        self.gamma = gamma
+        self.scale_by_gamma()
