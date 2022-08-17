@@ -269,7 +269,7 @@ if __name__ == "__main__":
     # model_strs = ["sst"]
     # model_strs = ["wst"]
     # model_strs = ["wstadj"]
-    # model_strs = ["adj"]
+    model_strs = ["sst"]
     # model_strs = ["ads"]
     # model_strs = ["adc"]
     # model_strs = ["sst", "wst", "wstadj", "ads", "adc"]
@@ -318,6 +318,85 @@ if __name__ == "__main__":
             delta_d = sys.argv[6]
             run_classes(filename + ".txt",
                         model_str, run_num=i, max_n=max_n, delta_d=delta_d)
+
+    # TODO: hacky way to load real world data, change it to be ==1
+    if len(sys.argv) == 0:
+        lines = open("all_pair.txt").readlines()
+        countries = open("doc_info.txt").readlines()
+        n = len(countries)
+        P = np.zeros((n, n))
+        for line in lines:
+            _, i, j = line.split()
+            i = int(float(i)) - 1
+            j = int(float(j)) - 1
+            P[i][j] += 1
+        print(P)
+        for i in range(n):
+            P[i][i] = 0.5
+            for j in range(i + 1, n):
+                c = P[i][j] + P[j][i]
+                P[i][j] = P[i, j] / c
+                P[j][i] = 1 - P[i][j]
+        print(P)
+        # for i in range(n):
+        #     for j in range(i + 1, n):
+        #         if P[i, j] < 0.5:
+        #             P[i, j] = 0.5
+        #             P[j, i] = 0.5
+        index_set = set(range(n))
+        to_remove = set()
+        for i in range(n):
+            for j in range(i + 1, n):
+                if P[i, j] < 0.5:
+                    to_remove.add(i)
+        to_remove.add(4)
+        index_set = index_set - to_remove
+        print(index_set)
+        index_set = list(index_set)
+        P = P[index_set, :]
+        print(P)
+        P = P[:, index_set]
+        n = len(index_set)
+        model = WSTModel(np.arange(0, n, 1), )
+        model.Pij = P[np.newaxis, :, :]
+        # exit(0)
+
+        model_str = 'sst'
+        lines = open("countrypopulation.s.txt").readlines()
+        s = np.array(list(map(float, lines)))
+        # print(s)
+        # n = len(s)
+        class_list = [PITSort, ProbeSortUC, ProbeSortUT]
+        res = []
+        gamma = np.ones(1) * 1
+        s = s[index_set]
+        model = HBTL(s, gamma)
+
+        for i in range(1):
+            sap = []
+            for cls in class_list:
+
+                print(cls.__name__)
+                random.seed(333 + i)
+                np.random.seed(333 + i)
+                cls_s = cls(n, 0.25, model)
+                cls_a = cls_s.arg_sort()
+                cls_n = cls_s.sample_complexity
+                print(cls_n)
+                sap.append(int(cls_n))
+
+                if cls_a is not None:
+                    # gt_a = list(np.argsort(s))
+                    gt_a = np.arange(0, n, 1)
+                    # print(cls_a)
+                    # print(gt_a)
+                    # print(cls_a)
+                    # assert np.all(gt_a == cls_a)
+
+            res.append(sap)
+
+        res = np.array(res)
+        print(res)
 
     if len(sys.argv) == 1:
         model_str = 'wst'
