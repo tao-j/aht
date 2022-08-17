@@ -3,6 +3,7 @@ Active Ranking from Noisy Comparisons
 
 `main-*.py` contains the main entry point for experiments.
 * `-aht`: compares `pit` and `hpit`.
+* `-ahs`: compares `pit` and `hpits`.
 * `-pbs`: compares `pit` and `probesort`.
 
 Most algorithms here are online, the data is generated on the fly in `model.py`. 
@@ -14,10 +15,11 @@ Most algorithms here are online, the data is generated on the fly in `model.py`.
 
 
 Implemented algorithms are: 
-* `mergesort`: classic merge sort.
-* `pitsort`: a reimplementation of [Rank-from-noisy-comparisons](https://github.com/WenboRen/ranking-from-noisy-comparisons).
-* `hpitsort`: implements some active ranking methods described in [paper][1].
-* `probesort`: an algorithm designed for better sample complexity than above methods 
+* `sort_merge`: classic merge sort.
+* `sort_pit`: a reimplementation of [Rank-from-noisy-comparisons](https://github.com/WenboRen/ranking-from-noisy-comparisons).
+* `sort_hpit`: implements some active ranking methods described in [paper][1].
+* `sort_hpits`: implements some active ranking methods that works for a more general model in the above paper.
+* `sort_probe`: an algorithm designed for better sample complexity than above methods 
 when WST is the case.
 
 [1]: https://arxiv.org/abs/2110.04136 "Adaptive Sampling for Heterogeneous Rank Aggregation from Noisy Pairwise Comparisons"
