@@ -130,6 +130,7 @@ def plot_deltad(model_str, max_n, repeat, delta_d):
     res = np.array(res)
 
     res_avg = np.average(res, axis=0).T
+    res_avg[res_avg > 10 ** 9] = 10 ** 9
     res_std = np.std(res, axis=0).T
     # print("avg", res_avg)
     # print("std", res_std)
@@ -155,8 +156,8 @@ def plot_deltad(model_str, max_n, repeat, delta_d):
         # if i == 1:
         #     continue
         cc.append(col_names_mapping[col_names[i]])
-    plt.legend(col_names, loc="lower right")
-    plt.legend(cc, prop={'size': 22})
+    # plt.legend(col_names, loc="lower right")
+    plt.legend(cc, prop={'size': 22}, loc="lower right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
@@ -195,13 +196,14 @@ def plot_n(model_str, n, repeat, delta_ds):
             # TODO: hacky here
             try:
                 des.append(df.to_numpy()[n // 10 - 1].tolist())
-                if np.any(np.array(des[-1]) > 10 ** 9):
-                    print(des[-1], delta_d)
+                # if np.any(np.array(des[-1]) > 10 ** 9):
+                #     print(des[-1], delta_d)
             except:
                 print("---- ---- failed one run", model_str, delta_d, i)
                 des.append(des[-1])
         res.append(des)
     res_avg = np.average(res, axis=1)
+    res_avg[res_avg > 10 ** 9] = 10 ** 9
     res_std = np.std(res, axis=1)
     # print("avg", res_avg)
     # print("std", res_std)
@@ -228,15 +230,19 @@ def plot_n(model_str, n, repeat, delta_ds):
         # if i == 1:
         #     continue
         cc.append(col_names_mapping[col_names[i]])
-    plt.legend(col_names, loc="upper right")
-    plt.legend(cc, prop={'size': 22})
+    # plt.legend(col_names, loc="upper right")
+    plt.legend(cc, prop={'size': 22}, loc="upper right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
     plt.grid(True)
     plt.xlabel("$\Delta_d$")
     plt.ylabel("Sample complexity")
-    # plt.ylim(bottom=10**0, top=10**10)
+    if model_str == "wst":
+        if n == 60:
+            plt.ylim(top=10 * 10 ** 5)
+        if n == 80:
+            plt.ylim(top=10 * 10 ** 5)
 
     setting = model_str_to_setting[model_str]
     # plt.title(f"$n = {n}$ {setting} model")
