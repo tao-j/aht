@@ -39,6 +39,49 @@ class Bandit2D:
     def r_filter(self, mu, mu_ucb, mu_lcb):
         raise NotImplementedError
 
+    def loop(self):
+        self.stable_count = 0
+        for t in range(1, self.t_limit):
+            i_t, j_t = self.pick_pair(t)
+
+            y_t = self.model.sample_pair(i_t, j_t)
+            if i_t == j_t:
+                self.C[i_t, j_t] += 1
+                self.W[i_t, j_t] += 0.5
+            else:
+                self.C[i_t, j_t] += 1
+                self.C[j_t, i_t] += 1
+                self.W[i_t, j_t] += y_t
+                self.W[j_t, i_t] += 1 - y_t
+            this_regret = self.add_to_regret(i_t, j_t)
+
+            self.last_it_jt = (i_t, j_t)
+            if self.last_it_jt == (self.i_star, self.i_star):
+                self.stable_count += 1
+            else:
+                self.stable_count = 0
+            if self.stable_count > 100:
+                break
+            if t % 100 == 0:
+                print("{:.3f} ".format(self.regret_div_t), end="")
+                print(t, i_t, j_t, this_regret, "                    ", end='\r')
+                sys.stdout.flush()
+        print()
+        sii = np.sum([self.C[i, i] if i != self.i_star[0] else 0 for i in range(n)])
+        sii_star = self.C[self.i_star, self.i_star]
+        print("ii", sii)
+        print("i*i*", sii_star)
+        print("ij", np.sum(self.C) - sii - sii_star)
+        return self.last_it_jt, self.i_star, self.t
+
+    def add_to_regret(self, i, j):
+        this_regret = 2 * self.regret_best - self.r_gt[i] - self.r_gt[j]
+        self.regret += this_regret
+        self.regret_div_t = self.regret / self.t
+        return this_regret
+
+
+class DTS(Bandit2D):
     def pick_pair(self, t):
         self.t = t
         zero_idx = self.C == 0
@@ -86,49 +129,8 @@ class Bandit2D:
 
         return i_t, j_t
 
-    def loop(self):
-        self.stable_count = 0
-        for t in range(1, self.t_limit):
-            i_t, j_t = self.pick_pair(t)
 
-            y_t = self.model.sample_pair(i_t, j_t)
-            if i_t == j_t:
-                self.C[i_t, j_t] += 1
-                self.W[i_t, j_t] += 0.5
-            else:
-                self.C[i_t, j_t] += 1
-                self.C[j_t, i_t] += 1
-                self.W[i_t, j_t] += y_t
-                self.W[j_t, i_t] += 1 - y_t
-            this_regret = self.add_to_regret(i_t, j_t)
-
-            self.last_it_jt = (i_t, j_t)
-            if self.last_it_jt == (self.i_star, self.i_star):
-                self.stable_count += 1
-            else:
-                self.stable_count = 0
-            if self.stable_count > 100:
-                break
-            if t % 100 == 0:
-                print("{:.3f} ".format(self.regret_div_t), end="")
-                print(t, i_t, j_t, this_regret, "                    ", end='\r')
-                sys.stdout.flush()
-        print()
-        sii = np.sum([self.C[i, i] if i != self.i_star[0] else 0 for i in range(n)])
-        sii_star = self.C[self.i_star, self.i_star]
-        print("ii", sii)
-        print("i*i*", sii_star)
-        print("ij", np.sum(self.C) - sii - sii_star)
-        return self.last_it_jt, self.i_star, self.t
-
-    def add_to_regret(self, i, j):
-        this_regret = 2 * self.regret_best - self.r_gt[i] - self.r_gt[j]
-        self.regret += this_regret
-        self.regret_div_t = self.regret / self.t
-        return this_regret
-
-
-class DTSCopland(Bandit2D):
+class DTSCopland(DTS):
     def r_metric(self, a):
         return np.sum(a > 0.5, axis=1) / self.n
 
@@ -148,11 +150,13 @@ class DTSBorda(Bandit2D):
 
 if __name__ == "__main__":
     n = 15
-    seed = 42
+    import time
+
+    seed = int(time.time())
     np.random.seed(seed)
     random.seed(seed)
 
-    for mdl_cls in [ HBTL, WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel,]:
+    for mdl_cls in [HBTL, WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, ]:
         model = mdl_cls(np.random.permutation(np.arange(0, n)))
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
