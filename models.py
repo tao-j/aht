@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 RAND_CACHE_SIZE = 100000
 
@@ -172,3 +173,27 @@ class WSTScale(WSTModel, Scaling):
         super().__init__(rank, delta_d=delta_d)
         self.gamma = gamma
         self.scale_by_gamma()
+
+
+class CountryPopulationNoUser(Model):
+    def __init__(self, *args):
+        super(CountryPopulationNoUser, self).__init__()
+        base_dir = os.path.join("data", "countrypopulation")
+        lines = open(os.path.join(base_dir, "all_pair.txt")).readlines()
+        countries = open(os.path.join(base_dir, "doc_info.txt")).readlines()
+        self.N = len(countries)
+        n = self.N
+        P = np.zeros((n, n))
+        for line in lines:
+            _, i, j = line.split()
+            i = int(float(i)) - 1
+            j = int(float(j)) - 1
+            P[i][j] += 1
+        for i in range(n):
+            P[i][i] = 0.5
+            for j in range(i + 1, n):
+                c = P[i][j] + P[j][i]
+                P[i][j] = P[i, j] / c
+                P[j][i] = 1 - P[i][j]
+
+        self.Pij = P[np.newaxis, :, :]

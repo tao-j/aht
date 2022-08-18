@@ -124,7 +124,7 @@ if __name__ == "__main__":
     np.random.seed(42)
     random.seed(42)
 
-    for mdl_cls in [WSTModel, HBTL, WSTAdjModel, AdjacentSqrtModel]:
+    for mdl_cls in [CountryPopulationNoUser, WSTModel, HBTL, WSTAdjModel, AdjacentSqrtModel]:
         model = mdl_cls(np.random.permutation(np.arange(0, n)))
         # print(model.Pij)
 
