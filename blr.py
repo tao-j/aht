@@ -39,6 +39,9 @@ class Bandit2D:
     def r_filter(self, mu, mu_ucb, mu_lcb):
         raise NotImplementedError
 
+    def pick_pair(self, t):
+        raise NotImplementedError
+
     def loop(self):
         self.stable_count = 0
         for t in range(1, self.t_limit):
@@ -79,6 +82,25 @@ class Bandit2D:
         self.regret += this_regret
         self.regret_div_t = self.regret / self.t
         return this_regret
+
+
+class TS(Bandit2D):
+    def pick_pair(self, t):
+        self.t = t
+        zero_idx = self.C == 0
+        mu = self.W / (self.C + 1e-6)
+        mu[zero_idx] = 0.5
+        cb = np.sqrt(self.alpha * np.log(t) / (self.C + 1e-6))
+        cb[zero_idx] = 0.5
+
+        ret = [None, None]
+        for i in range(2):
+            theta = self.rng.beta(self.W + 1, self.C - self.W + 1)
+            np.fill_diagonal(theta, 0.5)
+            r_hat = self.r_metric(theta)
+            ret[i] = np.argmax(r_hat)
+
+        return ret[0], ret[1]
 
 
 class DTS(Bandit2D):
@@ -130,7 +152,7 @@ class DTS(Bandit2D):
         return i_t, j_t
 
 
-class DTSCopland(DTS):
+class Copland(Bandit2D):
     def r_metric(self, a):
         return np.sum(a > 0.5, axis=1) / self.n
 
@@ -140,12 +162,28 @@ class DTSCopland(DTS):
         return hat_zeta != hat_zeta_max
 
 
-class DTSBorda(Bandit2D):
+class Borda(Bandit2D):
     def r_metric(self, a):
         return np.sum(a, axis=1) / self.n
 
     def r_filter(self, mu, mu_ucb, mu_lcb):
         return np.ones(self.n) < 0
+
+
+class TSCopland(Copland, TS):
+    pass
+
+
+class TSBorda(Borda, TS):
+    pass
+
+
+class DTSCopland(Copland, DTS):
+    pass
+
+
+class DTSBorda(Borda, DTS):
+    pass
 
 
 if __name__ == "__main__":
@@ -161,7 +199,9 @@ if __name__ == "__main__":
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
 
-        tsb = DTSCopland(model, seed)
-        # tsb = DTSBorda(model)
+        # tsb = TSCopland(model, seed)
+        # tsb = TSBorda(model, seed)
+        # tsb = DTSCopland(model, seed)
+        tsb = DTSBorda(model, seed)
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
