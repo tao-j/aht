@@ -1,3 +1,4 @@
+# SPDX-License-Identifer: GPL-3.0-only
 import sys
 import random
 import plotly.express as px
@@ -69,12 +70,16 @@ class Bandit2D:
                 break
             if t % 10 == 0:
                 print("{:.3f} ".format(self.regret_div_t), end="")
-                print(t, i_t, j_t, this_regret, "                    ", end='\r')
+                print(t, i_t, j_t, this_regret, "                    ", end="\r")
                 sys.stdout.flush()
                 self.regret_list.append(self.regret)
         print()
 
-        plt.plot(np.arange(0, len(self.regret_list))*10, self.regret_list, label=self.model.__class__.__name__)
+        plt.plot(
+            np.arange(0, len(self.regret_list)) * 10,
+            self.regret_list,
+            label=self.model.__class__.__name__,
+        )
 
         sii = np.sum([self.W[i, i] if i != self.i_star[0] else 0 for i in range(n)])
         sii_star = self.W[self.i_star, self.i_star]
@@ -212,7 +217,7 @@ class Copland(Bandit2D):
         return np.sum(a > 0.5, axis=1) / self.n
 
     def r_filter(self, mu, mu_ucb, mu_lcb):
-        hat_zeta = np.sum(mu_ucb > .5, axis=1) / self.n
+        hat_zeta = np.sum(mu_ucb > 0.5, axis=1) / self.n
         hat_zeta_max = np.max(hat_zeta)
         return hat_zeta != hat_zeta_max
 
@@ -258,7 +263,13 @@ if __name__ == "__main__":
     np.random.seed(seed)
     random.seed(seed)
 
-    for mdl_cls in [WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, Rand]:
+    for mdl_cls in [
+        WSTAdjModel,
+        AdjacentSqrtModel,
+        CountryPopulationNoUser,
+        WSTModel,
+        Rand,
+    ]:
         model = mdl_cls(np.random.permutation(np.arange(0, n)))
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
@@ -273,5 +284,5 @@ if __name__ == "__main__":
         tsb.t_limit = 100000
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
-    
+
     tsb.save_plot(seed)
