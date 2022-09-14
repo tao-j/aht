@@ -15,7 +15,10 @@ class Bandit2D:
         self.pij = self.model.Pij[0]
 
         n = self.n
+        # number of times ij wins
         self.W = np.zeros((n, n))
+        # total number of times this pair is pulled
+        # C_ij == C_ji
         self.C = np.zeros((n, n))
 
         self.regret = 0
@@ -52,14 +55,9 @@ class Bandit2D:
             i_t, j_t = self.pick_pair(t)
 
             y_t = self.model.sample_pair(i_t, j_t)
-            if i_t == j_t:
-                self.C[i_t, j_t] += 1
-                self.W[i_t, j_t] += 0.5
-            else:
-                self.C[i_t, j_t] += 1
-                self.C[j_t, i_t] += 1
-                self.W[i_t, j_t] += y_t
-                self.W[j_t, i_t] += 1 - y_t
+            self.W[i_t, j_t] += y_t
+            self.W[j_t, i_t] += 1 - y_t
+            self.C = self.W + self.W.T
             this_regret = self.add_to_regret(i_t, j_t)
 
             self.last_it_jt = (i_t, j_t)
@@ -67,9 +65,9 @@ class Bandit2D:
                 self.stable_count += 1
             else:
                 self.stable_count = 0
-            if self.stable_count > 100:
-                break
-            if t % 100 == 0:
+            # if self.stable_count > 1000:
+            #     break
+            if t % 10 == 0:
                 print("{:.3f} ".format(self.regret_div_t), end="")
                 print(t, i_t, j_t, this_regret, "                    ", end='\r')
                 sys.stdout.flush()
@@ -78,11 +76,11 @@ class Bandit2D:
 
         plt.plot(np.arange(0, len(self.regret_list))*10, self.regret_list, label=self.model.__class__.__name__)
 
-        sii = np.sum([self.C[i, i] if i != self.i_star[0] else 0 for i in range(n)])
-        sii_star = self.C[self.i_star, self.i_star]
+        sii = np.sum([self.W[i, i] if i != self.i_star[0] else 0 for i in range(n)])
+        sii_star = self.W[self.i_star, self.i_star]
         print("ii", sii)
         print("i*i*", sii_star)
-        print("ij", np.sum(self.C) - sii - sii_star)
+        print("ij", np.sum(self.W) - sii - sii_star)
 
         return self.last_it_jt, self.i_star, self.t
 
@@ -206,7 +204,7 @@ if __name__ == "__main__":
     import time
 
     seed = int(time.time())
-    seed = 41
+    seed = 42
     np.random.seed(seed)
     random.seed(seed)
 
@@ -217,11 +215,13 @@ if __name__ == "__main__":
         # print(model.Pij)
 
         # tsb = TSCopland(model, seed)
-        tsb = TSBorda(model, seed)
-        # tsb = DTSCopland(model, seed)
+        # tsb = TSBorda(model, seed)
+        tsb = DTSCopland(model, seed)
         # tsb = DTSBorda(model, seed)
         # tsb = DBDBordaAll(model, seed)
         # tsb = DBDBordaSingle(model, seed)
+
+        tsb.t_limit = 20000
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
     
