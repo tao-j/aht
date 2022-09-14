@@ -103,8 +103,6 @@ class TS(Bandit2D):
         zero_idx = self.C == 0
         mu = self.W / (self.C + 1e-6)
         mu[zero_idx] = 0.5
-        cb = np.sqrt(self.alpha * np.log(t) / (self.C + 1e-6))
-        cb[zero_idx] = 0.5
 
         ret = [None, None]
         for i in range(2):
@@ -165,6 +163,69 @@ class DTS(Bandit2D):
         return i_t, j_t
 
 
+class JtSingle:
+    def pick_jt(self, r_hat, cb, i_t, zeta_cb):
+        # Single
+        j_t = np.argmax(r_hat + 1 * cb[i_t, :])
+        return j_t
+
+
+class JtAll:
+    def pick_jt(self, r_hat, cb, i_t, zeta_cb):
+        # All
+        test = r_hat[i_t] - zeta_cb[i_t] > r_hat + zeta_cb
+        test[i_t] = True
+        if np.all(test):
+            j_t = i_t
+        else:
+            j_t = self.rng.choice(self.n)
+        return j_t
+
+
+class DBD(Bandit2D):
+    def pick_jt(self, *argv):
+        raise NotImplementedError
+
+    def pick_pair(self, t):
+        self.t = t
+        zero_idx = self.C == 0
+        mu = self.W / (self.C + 1e-6)
+        mu[zero_idx] = 0.5
+        # cb = np.sqrt(self.alpha * np.log(t) / (self.C + 1e-6))
+        # cb[zero_idx] = 0.5
+        cb = np.sqrt(self.alpha * np.log(t) / (self.C + 1e-6))
+        cb[zero_idx] = 5
+
+        mu_lcb = mu - cb
+        mu_ucb = mu + cb
+
+        zeta = np.sum(mu, axis=1) / self.n
+        tmp_cb = self.alpha * np.log(t) / (self.C + 1e-6)
+        tmp_cb[zero_idx] = 0.5
+        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1) / self.n)
+
+        zeta_remove_i = self.r_filter(mu, mu_ucb, mu_lcb)
+
+        theta = self.rng.beta(self.W + 1, self.C - self.W + 1)
+        np.fill_diagonal(theta, 0.5)
+        r_hat = self.r_metric(theta)
+        r_hat[zeta_remove_i] = 0
+        # if np.any(zeta_remove_i):
+        #     print('removed', zeta_remove_i)
+        i_t = np.argmax(r_hat)
+
+        j_t = self.pick_jt(r_hat, cb, i_t, zeta_cb)
+        return i_t, j_t
+
+
+class DBDAll(JtAll, DBD):
+    pass
+
+
+class DBDSingle(JtSingle, DBD):
+    pass
+
+
 class Copland(Bandit2D):
     def r_metric(self, a):
         return np.sum(a > 0.5, axis=1) / self.n
@@ -196,6 +257,14 @@ class DTSCopland(Copland, DTS):
 
 
 class DTSBorda(Borda, DTS):
+    pass
+
+
+class DBDBordaAll(Borda, DBDAll):
+    pass
+
+
+class DBDBordaSingle(Borda, DBDSingle):
     pass
 
 
