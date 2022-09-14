@@ -65,8 +65,8 @@ class Bandit2D:
                 self.stable_count += 1
             else:
                 self.stable_count = 0
-            # if self.stable_count > 1000:
-            #     break
+            if self.stable_count > 500:
+                break
             if t % 10 == 0:
                 print("{:.3f} ".format(self.regret_div_t), end="")
                 print(t, i_t, j_t, this_regret, "                    ", end='\r')
@@ -132,33 +132,14 @@ class DTS(Bandit2D):
         np.fill_diagonal(theta, 0.5)
         r_hat = self.r_metric(theta)
         r_hat[zeta_remove_i] = 0
-        # if np.any(zeta_remove_i):
-        #     print('removed', zeta_remove_i)
         i_t = np.argmax(r_hat)
-
-        # # i_t winning prob.
-        # phi = self.rng.beta(self.W[i_t, :] + 1, self.C[i_t, :] - self.W[i_t, :] + 1)
-        # # ignore items must worse than i_t
-        # phi[mu_lcb[i_t] > 0.5] = 1
-        # phi[i_t] = 0.5
-        # # item that lose to i_t with the lowest prob.
-        # # (potentially <0.5 then it actually beats i_t, otherwise pick i_t instead)
-        # j_t = np.argmin(phi)
 
         # i_t losing prob.
         phi = self.rng.beta(self.W[:, i_t] + 1, self.C[:, i_t] - self.W[:, i_t] + 1)
         # ignore items must better than i_t
         phi[mu_lcb[:, i_t] > 0.5] = 0
         phi[i_t] = 0.5
-        # item that could beat i_t with the highest prob.
-        # (>0.5 then it beats i_t, otherwise pick i_t instead)
         j_t = np.argmax(phi)
-
-        # uniformly sample opponent
-        # jset = set(np.arange(0, n, 1)[zeta_sel_i])
-        # j_t = rng.uniform(0, len(jset))
-        # j_t = list(jset)[int(j_t)]
-        # print(j_t)
 
         return i_t, j_t
 
@@ -277,7 +258,6 @@ if __name__ == "__main__":
     np.random.seed(seed)
     random.seed(seed)
 
-    # for mdl_cls in [ WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, Rand]:
     for mdl_cls in [WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, Rand]:
         model = mdl_cls(np.random.permutation(np.arange(0, n)))
         # model = mdl_cls((np.arange(0, n)))
@@ -285,12 +265,12 @@ if __name__ == "__main__":
 
         # tsb = TSCopland(model, seed)
         # tsb = TSBorda(model, seed)
-        tsb = DTSCopland(model, seed)
+        # tsb = DTSCopland(model, seed)
         # tsb = DTSBorda(model, seed)
         # tsb = DBDBordaAll(model, seed)
-        # tsb = DBDBordaSingle(model, seed)
+        tsb = DBDBordaSingle(model, seed)
 
-        tsb.t_limit = 20000
+        tsb.t_limit = 100000
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
     
