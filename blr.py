@@ -1,11 +1,14 @@
 import sys
 import random
+import plotly.express as px
+import pandas as pd
+import matplotlib.pyplot as plt
 
 from models import *
 
 
 class Bandit2D:
-    def __init__(self, model, seed):
+    def __init__(self, model, seed, t_limit=1000):
         self.model = model
         self.n = model.Pij.shape[1]
         # TODO: take care of 3D matrix
@@ -28,7 +31,7 @@ class Bandit2D:
         self.regret_best = np.max(self.r_gt)
 
         self.alpha = 1
-        self.t_limit = 50000
+        self.t_limit = t_limit
 
         self.stable_count = 0
         self.last_it_jt = (None, None)
@@ -44,6 +47,7 @@ class Bandit2D:
 
     def loop(self):
         self.stable_count = 0
+        self.regret_list = []
         for t in range(1, self.t_limit):
             i_t, j_t = self.pick_pair(t)
 
@@ -69,13 +73,24 @@ class Bandit2D:
                 print("{:.3f} ".format(self.regret_div_t), end="")
                 print(t, i_t, j_t, this_regret, "                    ", end='\r')
                 sys.stdout.flush()
+                self.regret_list.append(self.regret)
         print()
+
+        plt.plot(np.arange(0, len(self.regret_list))*10, self.regret_list, label=self.model.__class__.__name__)
+
         sii = np.sum([self.C[i, i] if i != self.i_star[0] else 0 for i in range(n)])
         sii_star = self.C[self.i_star, self.i_star]
         print("ii", sii)
         print("i*i*", sii_star)
         print("ij", np.sum(self.C) - sii - sii_star)
+
         return self.last_it_jt, self.i_star, self.t
+
+    def save_plot(self, seed):
+        plt.title(self.__class__.__name__)
+        # plt.show()
+        plt.legend(loc="upper left")
+        plt.savefig("output_fig/" + self.__class__.__name__ + f"-{seed}.png")
 
     def add_to_regret(self, i, j):
         this_regret = 2 * self.regret_best - self.r_gt[i] - self.r_gt[j]
@@ -191,17 +206,23 @@ if __name__ == "__main__":
     import time
 
     seed = int(time.time())
+    seed = 41
     np.random.seed(seed)
     random.seed(seed)
 
-    for mdl_cls in [HBTL, WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, ]:
+    # for mdl_cls in [ WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, Rand]:
+    for mdl_cls in [WSTAdjModel, AdjacentSqrtModel, CountryPopulationNoUser, WSTModel, Rand]:
         model = mdl_cls(np.random.permutation(np.arange(0, n)))
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
 
         # tsb = TSCopland(model, seed)
-        # tsb = TSBorda(model, seed)
+        tsb = TSBorda(model, seed)
         # tsb = DTSCopland(model, seed)
-        tsb = DTSBorda(model, seed)
+        # tsb = DTSBorda(model, seed)
+        # tsb = DBDBordaAll(model, seed)
+        # tsb = DBDBordaSingle(model, seed)
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
+    
+    tsb.save_plot(seed)

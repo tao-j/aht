@@ -98,6 +98,10 @@ class AdjacentSqrtModel(WSTModel):
 
 
 class WSTAdjModel(WSTModel):
+    """
+    adjacent items $0.5 + |delta_d , 1$
+    other items $0.5 + \delta_d/10, 0.5 + \delta_d$
+    """
     def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
@@ -173,6 +177,17 @@ class WSTScale(WSTModel, Scaling):
         super().__init__(rank, delta_d=delta_d)
         self.gamma = gamma
         self.scale_by_gamma()
+
+
+class Rand(Model):
+    def __init__(self, array):
+        super().__init__()
+        n = len(array)
+        self.Pij = np.random.rand(1, n, n)
+        for i in range(n):
+            for j in range(i + 1, n):
+                self.Pij[0, i, j] = 1 - self.Pij[0, j, i]
+        np.fill_diagonal(self.Pij[0, :, :], 0.5)
 
 
 class CountryPopulationNoUser(Model):
