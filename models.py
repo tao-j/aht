@@ -4,13 +4,13 @@ import os
 RAND_CACHE_SIZE = 100000
 
 
-def rnd_rng(a, b):
-    return np.random.random_sample() * (b - a) + a
-
-
 class Model:
-    def __init__(self):
-        self.rand_cache = np.random.random(RAND_CACHE_SIZE)
+    def __init__(self, seed=None):
+        if seed:
+            self.rng = np.random.default_rng(seed=seed)
+        else:
+            self.rng = np.random.default_rng()
+        self.rand_cache = self.rng.random(RAND_CACHE_SIZE)
         self.rand_i = 0
         self.rand_i_max = len(self.rand_cache)
 
@@ -24,7 +24,7 @@ class Model:
         self.rand_i += 1
         if self.rand_i >= self.rand_i_max:
             self.rand_i = 0
-            self.rand_cache = np.random.random(RAND_CACHE_SIZE)
+            self.rand_cache = self.rng.random(RAND_CACHE_SIZE)
         return y
 
 
@@ -38,8 +38,8 @@ class DummyModel(Model):
 
 
 class WSTModel(Model):
-    def __init__(self, rank, delta_d=0.25):
-        super(WSTModel, self).__init__()
+    def __init__(self, rank, delta_d=0.25, seed=None):
+        super(WSTModel, self).__init__(seed=seed)
         self.rank = rank
         self.N = len(rank)
         self.M = 1
@@ -50,7 +50,7 @@ class WSTModel(Model):
     def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
-                pij = np.random.random_sample() * (0.5 - delta_d) + 0.5 + delta_d
+                pij = self.rng.random() * (0.5 - delta_d) + 0.5 + delta_d
                 self.Pij[0, rank[i], rank[j]] = 1 - pij
                 self.Pij[0, rank[j], rank[i]] = pij
 
@@ -102,11 +102,12 @@ class WSTAdjModel(WSTModel):
     adjacent items $0.5 + |delta_d , 1$
     other items $0.5 + \delta_d/10, 0.5 + \delta_d$
     """
+
     def init_matrix(self, rank, delta_d):
         for i in range(self.N):
             for j in range(i + 1, self.N):
-                pij_adj = rnd_rng(0.5 + delta_d, 1)
-                pij_njj = rnd_rng(0.5 + delta_d / 10, 0.5 + delta_d)
+                pij_adj = self.rng.uniform(0.5 + delta_d, 1)
+                pij_njj = self.rng.uniform(0.5 + delta_d / 10, 0.5 + delta_d)
                 if j == i + 1:
                     pij = pij_adj
                 else:
@@ -116,8 +117,8 @@ class WSTAdjModel(WSTModel):
 
 
 class SSTModel(Model):
-    def __init__(self, s, gamma=None):
-        super().__init__()
+    def __init__(self, s, gamma=None, seed=None):
+        super().__init__(seed=seed)
 
         if gamma is None:
             gamma = [1.0]
@@ -138,7 +139,7 @@ class SSTModel(Model):
 
 class HBTL(SSTModel):
     def pij_func(self, i, j, u=0):
-        return 1. / (1 + np.exp(self.gamma[u] * (self.s[j] - self.s[i])))
+        return 1.0 / (1 + np.exp(self.gamma[u] * (self.s[j] - self.s[i])))
 
 
 class Uniform(SSTModel):
@@ -149,7 +150,8 @@ class Uniform(SSTModel):
         else:
             si = 1
             sj = 4
-        return 1. / (1 + np.exp(self.gamma[u] * (sj - si)))
+        return 1.0 / (1 + np.exp(self.gamma[u] * (sj - si)))
+
     # 2.5 0.99
     # 1.0 0.9
     # 0.5 0.81
@@ -165,25 +167,25 @@ class Scaling:
 
 
 class SSTScale(HBTL, Scaling):
-    def __init__(self, s, gamma=np.ones(1)):
+    def __init__(self, s, gamma=np.ones(1), seed=None):
         gamma = np.array(gamma)
-        super().__init__(s, np.ones(gamma.shape))
+        super().__init__(s, np.ones(gamma.shape), seed=seed)
         self.gamma = gamma
         self.scale_by_gamma()
 
 
 class WSTScale(WSTModel, Scaling):
-    def __init__(self, rank, delta_d=0.25, gamma=np.ones(1)):
-        super().__init__(rank, delta_d=delta_d)
+    def __init__(self, rank, delta_d=0.25, gamma=np.ones(1), seed=None):
+        super().__init__(rank, delta_d=delta_d, seed=seed)
         self.gamma = gamma
         self.scale_by_gamma()
 
 
 class Rand(Model):
-    def __init__(self, array):
-        super().__init__()
+    def __init__(self, array, seed=None):
+        super().__init__(seed=seed)
         n = len(array)
-        self.Pij = np.random.rand(1, n, n)
+        self.Pij = self.rng.random((1, n, n))
         for i in range(n):
             for j in range(i + 1, n):
                 self.Pij[0, i, j] = 1 - self.Pij[0, j, i]
@@ -191,8 +193,12 @@ class Rand(Model):
 
 
 class CountryPopulationNoUser(Model):
-    def __init__(self, *args):
-        super(CountryPopulationNoUser, self).__init__()
+    def __init__(self, *args, **kwargs):
+        if "seed" in kwargs:
+            seed = kwargs["seed"]
+        else:
+            seed = None
+        super().__init__(seed=seed)
         base_dir = os.path.join("data", "countrypopulation")
         lines = open(os.path.join(base_dir, "all_pair.txt")).readlines()
         countries = open(os.path.join(base_dir, "doc_info.txt")).readlines()

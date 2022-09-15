@@ -309,18 +309,18 @@ if __name__ == "__main__":
         WSTModel,
         Rand,
     ]:
-        model = mdl_cls(np.random.permutation(np.arange(0, n)))
+        model = mdl_cls(np.random.permutation(np.arange(0, n)), seed=seed)
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
 
         # tsb = ITSCopland(model, seed)
         # tsb = ITSBorda(model, seed)
-        tsb = DTSCopland(model, seed)
+        # tsb = DTSCopland(model, seed)
         # tsb = DTSBorda(model, seed)
         # tsb = DBDBordaAll(model, seed)
         # tsb = DBDBordaSingle(model, seed)
         # tsb = DBDBordaSingleEmpirical(model, seed)
-        # tsb = DUCBBorda(model, seed)
+        tsb = DUCBBorda(model, seed)
 
         tsb.t_limit = 200000
         print(mdl_cls.__name__, tsb.loop())
