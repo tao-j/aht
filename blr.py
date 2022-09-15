@@ -66,8 +66,8 @@ class Bandit2D:
                 self.stable_count += 1
             else:
                 self.stable_count = 0
-            if self.stable_count > 500:
-                break
+            # if self.stable_count > 1000:
+            #     break
             if t % 10 == 0:
                 print("{:.3f} ".format(self.regret_div_t), end="")
                 print(t, i_t, j_t, this_regret, "                    ", end="\r")
@@ -102,7 +102,7 @@ class Bandit2D:
         return this_regret
 
 
-class TS(Bandit2D):
+class ITS(Bandit2D):
     def pick_pair(self, t):
         self.t = t
         zero_idx = self.C == 0
@@ -149,15 +149,42 @@ class DTS(Bandit2D):
         return i_t, j_t
 
 
-class JtSingle:
-    def pick_jt(self, r_hat, cb, i_t, zeta_cb):
+class DUCB(Bandit2D):
+    def pick_pair(self, t):
+        self.t = t
+        zero_idx = self.C == 0
+        mu = self.W / (self.C + 1e-6)
+        mu[zero_idx] = 0.5
+        cb = np.sqrt(self.alpha * np.log(t) / (self.C + 1e-6))
+        cb[zero_idx] = 0.5
+
+        zeta = np.sum(mu, axis=1) / self.n
+        tmp_cb = self.alpha * np.log(t) / (self.C + 1e-6)
+        tmp_cb[zero_idx] = 0.5
+        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1) / self.n)
+
+        i_t = np.argmax(zeta + zeta_cb)
+        j_t = np.argmax(zeta + 1 * cb[i_t, :])
+
+        return i_t, j_t
+
+
+class TraitEmpirical:
+    def pick_jt(self, r_hat, cb, i_t, zeta_cb, zeta):
+        # Single
+        j_t = np.argmax(zeta + 1 * cb[i_t, :])
+        return j_t
+
+
+class TraitSingle:
+    def pick_jt(self, r_hat, cb, i_t, zeta_cb, zeta):
         # Single
         j_t = np.argmax(r_hat + 1 * cb[i_t, :])
         return j_t
 
 
-class JtAll:
-    def pick_jt(self, r_hat, cb, i_t, zeta_cb):
+class TraitAll:
+    def pick_jt(self, r_hat, cb, i_t, zeta_cb, zeta):
         # All
         test = r_hat[i_t] - zeta_cb[i_t] > r_hat + zeta_cb
         test[i_t] = True
@@ -200,15 +227,19 @@ class DBD(Bandit2D):
         #     print('removed', zeta_remove_i)
         i_t = np.argmax(r_hat)
 
-        j_t = self.pick_jt(r_hat, cb, i_t, zeta_cb)
+        j_t = self.pick_jt(r_hat, cb, i_t, zeta_cb, zeta)
         return i_t, j_t
 
 
-class DBDAll(JtAll, DBD):
+class DBDAll(TraitAll, DBD):
     pass
 
 
-class DBDSingle(JtSingle, DBD):
+class DBDSingle(TraitSingle, DBD):
+    pass
+
+
+class DBDSingleEmpirical(TraitEmpirical, DBDSingle):
     pass
 
 
@@ -230,11 +261,11 @@ class Borda(Bandit2D):
         return np.ones(self.n) < 0
 
 
-class TSCopland(Copland, TS):
+class ITSCopland(Copland, ITS):
     pass
 
 
-class TSBorda(Borda, TS):
+class ITSBorda(Borda, ITS):
     pass
 
 
@@ -246,6 +277,10 @@ class DTSBorda(Borda, DTS):
     pass
 
 
+class DUCBBorda(Borda, DUCB):
+    pass
+
+
 class DBDBordaAll(Borda, DBDAll):
     pass
 
@@ -254,12 +289,16 @@ class DBDBordaSingle(Borda, DBDSingle):
     pass
 
 
+class DBDBordaSingleEmpirical(Borda, DBDSingleEmpirical):
+    pass
+
+
 if __name__ == "__main__":
     n = 15
     import time
 
     seed = int(time.time())
-    seed = 42
+    seed = 43
     np.random.seed(seed)
     random.seed(seed)
 
@@ -274,14 +313,16 @@ if __name__ == "__main__":
         # model = mdl_cls((np.arange(0, n)))
         # print(model.Pij)
 
-        # tsb = TSCopland(model, seed)
-        # tsb = TSBorda(model, seed)
-        # tsb = DTSCopland(model, seed)
+        # tsb = ITSCopland(model, seed)
+        # tsb = ITSBorda(model, seed)
+        tsb = DTSCopland(model, seed)
         # tsb = DTSBorda(model, seed)
         # tsb = DBDBordaAll(model, seed)
-        tsb = DBDBordaSingle(model, seed)
+        # tsb = DBDBordaSingle(model, seed)
+        # tsb = DBDBordaSingleEmpirical(model, seed)
+        # tsb = DUCBBorda(model, seed)
 
-        tsb.t_limit = 100000
+        tsb.t_limit = 200000
         print(mdl_cls.__name__, tsb.loop())
         print("---------------------------")
 
