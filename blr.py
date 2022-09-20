@@ -1,4 +1,5 @@
 # SPDX-License-Identifer: GPL-3.0-only
+from operator import truediv
 import sys
 import random
 import plotly.express as px
@@ -40,6 +41,8 @@ class Bandit2D:
         self.stable_count = 0
         self.last_it_jt = (None, None)
 
+        self.plot_group_by_algo = True
+
     def r_metric(self, a):
         raise NotImplementedError
 
@@ -75,10 +78,14 @@ class Bandit2D:
                 self.regret_list.append(self.regret)
         print()
 
+        if self.plot_group_by_algo:
+            label = self.model.__class__.__name__
+        else:
+            label = self.__class__.__name__
         plt.plot(
             np.arange(0, len(self.regret_list)) * 10,
             self.regret_list,
-            label=self.model.__class__.__name__,
+            label=label,
         )
 
         sii = np.sum([self.W[i, i] if i != self.i_star[0] else 0 for i in range(n)])
@@ -90,10 +97,14 @@ class Bandit2D:
         return self.last_it_jt, self.i_star, self.t
 
     def save_plot(self, seed):
-        plt.title(self.__class__.__name__)
         # plt.show()
         plt.legend(loc="upper left")
-        plt.savefig("output_fig/" + self.__class__.__name__ + f"-{seed}.png")
+        if self.plot_group_by_algo:
+            fig_name = "a" + self.__class__.__name__
+        else:
+            fig_name = "m" + self.model.__class__.__name__
+        plt.title(fig_name)
+        plt.savefig("output_fig/" + fig_name + f"-{seed}.png")
 
     def add_to_regret(self, i, j):
         this_regret = 2 * self.regret_best - self.r_gt[i] - self.r_gt[j]
@@ -293,15 +304,8 @@ class DBDBordaSingleEmpirical(Borda, DBDSingleEmpirical):
     pass
 
 
-if __name__ == "__main__":
-    n = 15
-    import time
-
-    seed = int(time.time())
-    seed = 43
-    np.random.seed(seed)
-    random.seed(seed)
-
+def exp_group_by_algo(seed):
+    # group by algo
     for mdl_cls in [
         WSTAdjModel,
         AdjacentSqrtModel,
@@ -314,16 +318,55 @@ if __name__ == "__main__":
         # print(model.Pij)
 
         # tsb = ITSCopland(model, seed)
-        # tsb = ITSBorda(model, seed)
+        tsb = ITSBorda(model, seed)
         # tsb = DTSCopland(model, seed)
         # tsb = DTSBorda(model, seed)
         # tsb = DBDBordaAll(model, seed)
         # tsb = DBDBordaSingle(model, seed)
         # tsb = DBDBordaSingleEmpirical(model, seed)
-        tsb = DUCBBorda(model, seed)
-
+        # tsb = DUCBBorda(model, seed)
+        tsb.plot_group_by_algo = True
         tsb.t_limit = 200000
-        print(mdl_cls.__name__, tsb.loop())
+        print(mdl_cls.__name__)
+        tsb.loop()
         print("---------------------------")
 
     tsb.save_plot(seed)
+
+
+def exp_group_by_model(seed):
+    # group by model
+    randinit = np.random.permutation(np.arange(0, n))
+    for alg_cls in [
+        ITSBorda,
+        DTSCopland,
+        DBDBordaSingle,
+        DBDBordaSingleEmpirical,
+        DUCBBorda,
+    ]:
+        # model = WSTAdjModel(randinit, seed=seed)
+        # model = AdjacentSqrtModel(randinit, seed=seed)
+        # model = CountryPopulationNoUser(randinit, seed=seed)
+        # model = WSTModel(randinit, seed=seed)
+        model = Rand(randinit, seed=seed)
+
+        tsb = alg_cls(model, seed)
+        tsb.plot_group_by_algo = False
+        tsb.t_limit = 200000
+        print(alg_cls.__name__)
+        tsb.loop()
+        print("---------------------------")
+    tsb.save_plot(seed)
+
+
+if __name__ == "__main__":
+    n = 15
+    import time
+
+    seed = int(time.time())
+    seed = 42
+    np.random.seed(seed)
+    random.seed(seed)
+
+    # exp_group_by_algo(seed=seed)
+    exp_group_by_model(seed=seed)
