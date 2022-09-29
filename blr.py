@@ -172,7 +172,7 @@ class DUCB(Bandit2D):
         zeta = np.sum(mu, axis=1) / self.n
         tmp_cb = self.alpha * np.log(t) / (self.C + 1e-6)
         tmp_cb[zero_idx] = 0.5
-        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1) / self.n)
+        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1)) / self.n
 
         i_t = np.argmax(zeta + zeta_cb)
         j_t = np.argmax(zeta + 1 * cb[i_t, :])
@@ -226,7 +226,7 @@ class DBD(Bandit2D):
         zeta = np.sum(mu, axis=1) / self.n
         tmp_cb = self.alpha * np.log(t) / (self.C + 1e-6)
         tmp_cb[zero_idx] = 0.5
-        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1) / self.n)
+        zeta_cb = np.sqrt(np.sum(tmp_cb, axis=1)) / self.n
 
         zeta_remove_i = self.r_filter(mu, mu_ucb, mu_lcb)
 
@@ -344,11 +344,11 @@ def exp_group_by_model(seed):
         DBDBordaSingleEmpirical,
         DUCBBorda,
     ]:
-        # model = WSTAdjModel(randinit, seed=seed)
+        model = WSTAdjModel(randinit, seed=seed)
         # model = AdjacentSqrtModel(randinit, seed=seed)
         # model = CountryPopulationNoUser(randinit, seed=seed)
         # model = WSTModel(randinit, seed=seed)
-        model = Rand(randinit, seed=seed)
+        # model = Rand(randinit, seed=seed)
 
         tsb = alg_cls(model, seed)
         tsb.plot_group_by_algo = False
@@ -364,7 +364,7 @@ if __name__ == "__main__":
     import time
 
     seed = int(time.time())
-    seed = 42
+    seed = 43
     np.random.seed(seed)
     random.seed(seed)
 
