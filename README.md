@@ -1,6 +1,8 @@
 Active Ranking from Noisy Comparisons    
 ===
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 `main-*.py` contains the main entry point for experiments.
 * `-aht`: compares `pit` and `hpit`.
 * `-ahs`: compares `pit` and `hpits`.
