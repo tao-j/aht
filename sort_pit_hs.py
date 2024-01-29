@@ -6,14 +6,14 @@ from models import HBTL, Uniform
 RAND_CACHE_SIZE = 100000
 
 
-class HeterogeneousPITSort(PITSort):
+class SHeterogeneousPITSort(PITSort):
     def __init__(self, n, m, eps_user, delta_rank, delta_user, model, active=True):
         self.M = m
         self.cU = np.array(range(0, m))
         self.eps_user = eps_user
         self.delta_rank = delta_rank
         self.delta_user = delta_user
-        super(HeterogeneousPITSort, self).__init__(n, delta_rank, model)
+        super(SHeterogeneousPITSort, self).__init__(n, delta_rank, model)
 
         self.rank_sample_complexity = 0
         self.active = active
@@ -80,11 +80,12 @@ class HeterogeneousPITSort(PITSort):
         if smin == 0:
             return eps
         assert np.log2(2 * len(self.cU) / delta) / 2 / smin > 0
-        r = np.sqrt(np.log2(2 * len(self.cU) / delta) / 2 / smin)
+        r = np.sqrt(np.log2(2 * len(self.cU) / delta) / (self.bn + 1e-10))
+        # print(r)
+        bucb = mu + r
+        blcb = mu - r
         stotal = sum(self.bs)
         if stotal > 2 * self.M * self.M * np.log2(self.N * self.M / delta):
-            bucb = mu + r
-            blcb = mu - r
             to_remove = set()
             for u in self.cU:
                 for up in self.cU:
@@ -104,11 +105,11 @@ class HeterogeneousPITSort(PITSort):
         return r
 
 
-class TwoStageSeparateRank(HeterogeneousPITSort):
+class STwoStageSeparateRank(SHeterogeneousPITSort):
     def __init__(self, n, m, eps_user, delta_rank, delta_user, model, active=True):
         super().__init__(n, m, eps_user, delta_rank, delta_user, model, active)
         # rank the first pair of item
-        algo = HeterogeneousPITSort(2, m, eps_user, delta_rank, delta_user, model.__class__(model.s[:2], model.gamma),
+        algo = SHeterogeneousPITSort(2, m, eps_user, delta_rank, delta_user, model.__class__(model.s[:2], model.gamma),
                                     active=False)
         ranked = algo.arg_sort()
         cost1 = algo.sample_complexity
@@ -117,7 +118,7 @@ class TwoStageSeparateRank(HeterogeneousPITSort):
         else:
             self.gt_y = 0
         r = self.eps_user
-        while r >= self.eps_user:
+        while np.all(r >= self.eps_user):
             u = self.cU[self.sample_user_idx()]
             y = self.model.sample_pair(0, 1, u)
             self.bs[u] += 1

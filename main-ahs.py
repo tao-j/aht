@@ -1,5 +1,5 @@
-from sort_pit_ht import HeterogeneousPITSort, TwoStageSeparateRank
-from models import Uniform, HBTL
+from sort_pit_hs import SHeterogeneousPITSort, STwoStageSeparateRank
+from models import Uniform, HBTL, SSTScale
 
 import random
 import numpy as np
@@ -8,6 +8,12 @@ import sys
 import subprocess
 from sbatch import sbatch_template
 
+algo_map = {
+    0: "non-act",
+    1: "act",
+    2: "two-stage",
+    3: "oracle"
+}
 
 def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=9, gg=5.0, gb=0.5):
     random.seed(128)
@@ -31,25 +37,26 @@ def run(algonum, repeat, eps_user=0.1, delta_rank=0.25, delta_user=0.5, N=10, M=
         s_idx = list(range(0, len(s)))
         random.shuffle(s_idx)
         s = s[s_idx]
-        mdl_cls = Uniform
+        # mdl_cls = Uniform
         # mdl_cls = HBTL
+        mdl_cls = SSTScale
 
         algo = None
         if algonum == 3:
             # oracle
-            algo = HeterogeneousPITSort(N, 1, eps_user, delta_rank, delta_user,
+            algo = SHeterogeneousPITSort(N, 1, eps_user, delta_rank, delta_user,
                                         mdl_cls(s, [max(gamma)]), active=False)
         elif algonum == 2:
             # two stage
-            algo = TwoStageSeparateRank(N, M, eps_user, delta_rank, delta_user,
+            algo = STwoStageSeparateRank(N, M, eps_user, delta_rank, delta_user,
                                         mdl_cls(s, gamma))
         elif algonum == 1:
             # act
-            algo = HeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
+            algo = SHeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
                                         mdl_cls(s, gamma), active=True)
         elif algonum == 0:
             # non-act
-            algo = HeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
+            algo = SHeterogeneousPITSort(N, M, eps_user, delta_rank, delta_user,
                                         mdl_cls(s, gamma), active=False)
 
         if algo is not None:
@@ -75,8 +82,8 @@ if __name__ == "__main__":
     # for delta in np.arange(0.05, 1, 0.05):
     n_test_range = list(range(10, 101, 10))
     m_test_range = [9, 18, 36]
-    gg_range = [0.5, 1.0, 2.5]
-    gb_range = [0.25, 0.5, 1.0]
+    gg_range = [0.50, 0.75, 1.00]
+    gb_range = [0.10, 0.25, 0.50]
     # for gb in [0.25, 1., 2.5]:
     #     for gg in [2.5, 5, 10]:
     invoker = "subprocess"
@@ -100,9 +107,9 @@ if __name__ == "__main__":
             for m in m_test_range:
                 for gg in gg_range:
                     for gb in gb_range:
-                        for algonum in range(0, 4):
+                        for algonum in [0, 1, 2, 3]:
                             fname = f"n{n}-m{m}-gg{gg:.2f}-gb{gb:.2f}-algo{algonum}"
-                            args = ["python3", "main.py", "run", fname]
+                            args = ["python3", "main-ahs.py", "run", fname]
                             log_name = os.path.join(outdir, f"{fname}.log")
                             if os.path.isfile(log_name):
                                 # continue # skip when task exists
@@ -132,7 +139,7 @@ if __name__ == "__main__":
                                 print(f"sbatch {sbatch_name} done")
 
                             if invoker == "sequential":
-                                print("seq started", fname)
+                                print("seq started", fname, algo_map[algonum])
                                 avg, std = run(algonum, repeat, eps_user, delta_rank, delta_user, n, m, gg, gb)
                                 print(avg, std)
                         print("----------------")
@@ -175,7 +182,7 @@ if __name__ == "__main__":
                     ax[0].axes.yaxis.set_major_formatter(fmt)
                     plt.xlabel("Number of items to rank")
                     plt.ylabel("Sample Complexity")
-                    plt.ylim(bottom=0, top=800000)
+                    # plt.ylim(bottom=0, top=800000)
                     plt.title(f"$\gamma_A = {gb}, \gamma_B = {gg}$")
                     fig_name = f'output_plots/m{m}gb{gb}gg{gg}.pdf'
                     plt.savefig(fig_name)

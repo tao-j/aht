@@ -1,5 +1,5 @@
-from pitsort import PITSort
-from probesort import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortUTOld, ProbeSortUTOldWrong, ProbeSortULT
+from sort_pit import PITSort
+from sort_probe import ProbeSortUC, ProbeSortULC, ProbeSortUT, ProbeSortULT
 from models import WSTModel, HBTL, WSTAdjModel, AdjacentOnlyModel, AdjacentSqrtModel, AdjacentConstantModel
 
 import os
@@ -20,8 +20,6 @@ col_names_mapping = {
     PITSort.__name__: "IIR",
     ProbeSortUT.__name__: "Probe-Rank",
     ProbeSortUC.__name__: "Probe-Rank-SE",
-    ProbeSortUTOld.__name__: "Probe-Rank-Old",
-    ProbeSortUTOldWrong.__name__: "Probe-Rank-OldWrong",
 }
 
 
@@ -132,6 +130,7 @@ def plot_deltad(model_str, max_n, repeat, delta_d):
     res = np.array(res)
 
     res_avg = np.average(res, axis=0).T
+    res_avg[res_avg > 10 ** 9] = 10 ** 9
     res_std = np.std(res, axis=0).T
     # print("avg", res_avg)
     # print("std", res_std)
@@ -157,8 +156,8 @@ def plot_deltad(model_str, max_n, repeat, delta_d):
         # if i == 1:
         #     continue
         cc.append(col_names_mapping[col_names[i]])
-    plt.legend(col_names, loc="lower right")
-    plt.legend(cc, prop={'size': 22})
+    # plt.legend(col_names, loc="lower right")
+    plt.legend(cc, prop={'size': 22}, loc="lower right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
@@ -197,13 +196,14 @@ def plot_n(model_str, n, repeat, delta_ds):
             # TODO: hacky here
             try:
                 des.append(df.to_numpy()[n // 10 - 1].tolist())
-                if np.any(np.array(des[-1]) > 10 ** 9):
-                    print(des[-1], delta_d)
+                # if np.any(np.array(des[-1]) > 10 ** 9):
+                #     print(des[-1], delta_d)
             except:
                 print("---- ---- failed one run", model_str, delta_d, i)
                 des.append(des[-1])
         res.append(des)
     res_avg = np.average(res, axis=1)
+    res_avg[res_avg > 10 ** 9] = 10 ** 9
     res_std = np.std(res, axis=1)
     # print("avg", res_avg)
     # print("std", res_std)
@@ -230,15 +230,19 @@ def plot_n(model_str, n, repeat, delta_ds):
         # if i == 1:
         #     continue
         cc.append(col_names_mapping[col_names[i]])
-    plt.legend(col_names, loc="upper right")
-    plt.legend(cc, prop={'size': 22})
+    # plt.legend(col_names, loc="upper right")
+    plt.legend(cc, prop={'size': 22}, loc="upper right")
     fmt = plt.ScalarFormatter()
     ax[0].axes.yaxis.set_major_formatter(fmt)
     plt.yscale('log')
     plt.grid(True)
     plt.xlabel("$\Delta_d$")
     plt.ylabel("Sample complexity")
-    # plt.ylim(bottom=10**0, top=10**10)
+    if model_str == "wst":
+        if n == 60:
+            plt.ylim(top=10 * 10 ** 5)
+        if n == 80:
+            plt.ylim(top=10 * 10 ** 5)
 
     setting = model_str_to_setting[model_str]
     # plt.title(f"$n = {n}$ {setting} model")
@@ -269,7 +273,7 @@ if __name__ == "__main__":
     # model_strs = ["sst"]
     # model_strs = ["wst"]
     # model_strs = ["wstadj"]
-    # model_strs = ["adj"]
+    model_strs = ["sst"]
     # model_strs = ["ads"]
     # model_strs = ["adc"]
     # model_strs = ["sst", "wst", "wstadj", "ads", "adc"]
@@ -318,6 +322,85 @@ if __name__ == "__main__":
             delta_d = sys.argv[6]
             run_classes(filename + ".txt",
                         model_str, run_num=i, max_n=max_n, delta_d=delta_d)
+
+    # TODO: hacky way to load real world data, change it to be ==1
+    if len(sys.argv) == 0:
+        lines = open("all_pair.txt").readlines()
+        countries = open("doc_info.txt").readlines()
+        n = len(countries)
+        P = np.zeros((n, n))
+        for line in lines:
+            _, i, j = line.split()
+            i = int(float(i)) - 1
+            j = int(float(j)) - 1
+            P[i][j] += 1
+        print(P)
+        for i in range(n):
+            P[i][i] = 0.5
+            for j in range(i + 1, n):
+                c = P[i][j] + P[j][i]
+                P[i][j] = P[i, j] / c
+                P[j][i] = 1 - P[i][j]
+        print(P)
+        # for i in range(n):
+        #     for j in range(i + 1, n):
+        #         if P[i, j] < 0.5:
+        #             P[i, j] = 0.5
+        #             P[j, i] = 0.5
+        index_set = set(range(n))
+        to_remove = set()
+        for i in range(n):
+            for j in range(i + 1, n):
+                if P[i, j] < 0.5:
+                    to_remove.add(i)
+        to_remove.add(4)
+        index_set = index_set - to_remove
+        print(index_set)
+        index_set = list(index_set)
+        P = P[index_set, :]
+        print(P)
+        P = P[:, index_set]
+        n = len(index_set)
+        model = WSTModel(np.arange(0, n, 1), )
+        model.Pij = P[np.newaxis, :, :]
+        # exit(0)
+
+        model_str = 'sst'
+        lines = open("countrypopulation.s.txt").readlines()
+        s = np.array(list(map(float, lines)))
+        # print(s)
+        # n = len(s)
+        class_list = [PITSort, ProbeSortUC, ProbeSortUT]
+        res = []
+        gamma = np.ones(1) * 1
+        s = s[index_set]
+        model = HBTL(s, gamma)
+
+        for i in range(1):
+            sap = []
+            for cls in class_list:
+
+                print(cls.__name__)
+                random.seed(333 + i)
+                np.random.seed(333 + i)
+                cls_s = cls(n, 0.25, model)
+                cls_a = cls_s.arg_sort()
+                cls_n = cls_s.sample_complexity
+                print(cls_n)
+                sap.append(int(cls_n))
+
+                if cls_a is not None:
+                    # gt_a = list(np.argsort(s))
+                    gt_a = np.arange(0, n, 1)
+                    # print(cls_a)
+                    # print(gt_a)
+                    # print(cls_a)
+                    # assert np.all(gt_a == cls_a)
+
+            res.append(sap)
+
+        res = np.array(res)
+        print(res)
 
     if len(sys.argv) == 1:
         model_str = 'wst'
